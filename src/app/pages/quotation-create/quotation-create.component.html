@@ -1,0 +1,544 @@
+<div class="max-w-7xl mx-auto p-6">
+  <!-- Page header -->
+  <div class="flex items-start gap-3 mb-6">
+    <div
+      class="w-11 h-11 rounded-lg bg-green-50 flex items-center justify-center text-green-700 shrink-0"
+    >
+      <i class="pi pi-file-edit text-xl"></i>
+    </div>
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Create Quotation</h1>
+      <p class="text-sm text-gray-500">
+        Enter the details below to get an estimated price for your custom
+        jewelry.
+      </p>
+    </div>
+  </div>
+
+  <div *ngIf="loadingOptions" class="flex justify-center items-center py-16">
+    <p-progressSpinner
+      styleClass="w-12 h-12"
+      strokeWidth="4"
+    ></p-progressSpinner>
+  </div>
+
+  <div *ngIf="loadError" class="p-6 text-red-600">
+    Failed to load form options. Please refresh the page.
+  </div>
+
+  <div
+    *ngIf="!loadingOptions && !loadError"
+    class="grid grid-cols-1 lg:grid-cols-3 gap-6"
+  >
+    <!-- LEFT: FORM -->
+    <form [formGroup]="quotationForm" class="lg:col-span-2">
+      <p-card>
+        <div class="space-y-8">
+          <!-- BASIC INFO -->
+          <div formGroupName="basicInfo">
+            <div class="flex items-center gap-3 mb-4">
+              <div
+                class="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-600"
+              >
+                <i class="pi pi-user"></i>
+              </div>
+              <div>
+                <h3 class="font-semibold text-gray-800">Basic Info</h3>
+                <p class="text-xs text-gray-500">
+                  Tell us about your customer and contact details.
+                </p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <p-floatlabel variant="on">
+                <input
+                  pInputText
+                  id="customerName"
+                  formControlName="customerName"
+                  class="w-full"
+                />
+                <label for="customerName">Customer Name *</label>
+              </p-floatlabel>
+
+              <p-floatlabel variant="on">
+                <input
+                  pInputText
+                  id="phoneNumber"
+                  formControlName="phoneNumber"
+                  class="w-full"
+                />
+                <label for="phoneNumber">Phone Number *</label>
+              </p-floatlabel>
+
+              <p-floatlabel variant="on">
+                <input
+                  pInputText
+                  id="email"
+                  formControlName="email"
+                  class="w-full"
+                />
+                <label for="email">Email (optional)</label>
+              </p-floatlabel>
+
+              <p-floatlabel variant="on">
+                <p-select
+                  id="salesPerson"
+                  formControlName="salesPerson"
+                  [options]="salesPersonOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  class="w-full"
+                />
+                <label for="salesPerson">Sales Person *</label>
+              </p-floatlabel>
+            </div>
+          </div>
+
+          <p-divider></p-divider>
+
+          <!-- METAL -->
+          <div formGroupName="metal">
+            <div class="flex items-center gap-3 mb-4">
+              <div
+                class="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-600"
+              >
+                <i class="pi pi-box"></i>
+              </div>
+              <div>
+                <h3 class="font-semibold text-gray-800">Metal</h3>
+                <p class="text-xs text-gray-500">
+                  Select the metal purity and specify weight.
+                </p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <p-floatlabel variant="on">
+                <p-select
+                  id="purity"
+                  formControlName="purity"
+                  [options]="metalPurityOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  [filter]="true"
+                  class="w-full"
+                />
+                <label for="purity">Metal Purity *</label>
+              </p-floatlabel>
+
+              <p-floatlabel variant="on">
+                <p-inputNumber
+                  id="metalWeight"
+                  formControlName="weight"
+                  [minFractionDigits]="2"
+                  [maxFractionDigits]="3"
+                  suffix=" g"
+                  class="w-full"
+                />
+                <label for="metalWeight">Metal Weight *</label>
+              </p-floatlabel>
+            </div>
+          </div>
+
+          <p-divider></p-divider>
+
+          <!-- DIAMONDS -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"
+                >
+                  <i class="pi pi-star"></i>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-gray-800">Diamonds</h3>
+                  <p class="text-xs text-gray-500">
+                    Add one row per diamond variety used in this piece.
+                  </p>
+                </div>
+              </div>
+              <p-button
+                label="Add Diamond"
+                icon="pi pi-plus"
+                iconPos="left"
+                [text]="true"
+                size="small"
+                type="button"
+                (onClick)="addDiamond()"
+              ></p-button>
+            </div>
+
+            <div formArrayName="diamonds" class="space-y-4">
+              <div
+                *ngFor="let row of diamonds.controls; let i = index"
+                [formGroupName]="i"
+                class="relative rounded-lg border border-gray-100 p-4"
+              >
+                <button
+                  *ngIf="diamonds.length > 1"
+                  type="button"
+                  class="absolute top-0 right-0 text-gray-400 hover:text-red-500 cursor-pointer"
+                  (click)="removeDiamond(i)"
+                  aria-label="Remove diamond row"
+                >
+                  <i class="pi pi-times"></i>
+                </button>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <p-floatlabel variant="on">
+                    <p-select
+                      [id]="'diamondShape' + i"
+                      formControlName="shape"
+                      [options]="shapeOptions"
+                      optionLabel="label"
+                      optionValue="value"
+                      [filter]="true"
+                      class="w-full"
+                    />
+                    <label [for]="'diamondShape' + i">Diamond Shape</label>
+                  </p-floatlabel>
+
+                  <p-floatlabel variant="on">
+                    <p-select
+                      [id]="'diamondQuality' + i"
+                      formControlName="quality"
+                      [options]="diamondQualityOptions"
+                      optionLabel="label"
+                      optionValue="value"
+                      class="w-full"
+                    />
+                    <label [for]="'diamondQuality' + i">Quality</label>
+                  </p-floatlabel>
+
+                  <p-floatlabel variant="on">
+                    <p-inputNumber
+                      [id]="'diamondWeight' + i"
+                      formControlName="weight"
+                      [minFractionDigits]="2"
+                      [maxFractionDigits]="3"
+                      suffix=" ct"
+                      class="w-full"
+                    />
+                    <label [for]="'diamondWeight' + i">Avg. Size (ct)</label>
+                  </p-floatlabel>
+
+                  <p-floatlabel variant="on">
+                    <p-inputNumber
+                      [id]="'diamondPieces' + i"
+                      formControlName="pieces"
+                      class="w-full"
+                    />
+                    <label [for]="'diamondPieces' + i">No. of Pieces</label>
+                  </p-floatlabel>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p-divider></p-divider>
+
+          <!-- STONES -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600"
+                >
+                  <i class="pi pi-heart-fill"></i>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-gray-800">Gemstones</h3>
+                  <p class="text-xs text-gray-500">
+                    Add one row per gemstone variety used in this piece.
+                  </p>
+                </div>
+              </div>
+              <p-button
+                label="Add Stone"
+                icon="pi pi-plus"
+                iconPos="left"
+                [text]="true"
+                size="small"
+                type="button"
+                (onClick)="addStone()"
+              ></p-button>
+            </div>
+
+            <div formArrayName="stones" class="space-y-4">
+              <div
+                *ngFor="let row of stones.controls; let i = index"
+                [formGroupName]="i"
+                class="relative rounded-lg border border-gray-100 p-4"
+              >
+                <button
+                  *ngIf="stones.length > 1"
+                  type="button"
+                  class="absolute top-0 right-0 text-gray-400 hover:text-red-500 cursor-pointer"
+                  (click)="removeStone(i)"
+                  aria-label="Remove stone row"
+                >
+                  <i class="pi pi-times"></i>
+                </button>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <p-floatlabel variant="on">
+                    <p-select
+                      [id]="'stoneType' + i"
+                      formControlName="type"
+                      [options]="stoneTypeOptions"
+                      optionLabel="label"
+                      optionValue="value"
+                      [filter]="true"
+                      class="w-full"
+                    />
+                    <label [for]="'stoneType' + i">Stone Type</label>
+                  </p-floatlabel>
+
+                  <p-floatlabel variant="on">
+                    <p-select
+                      [id]="'stoneShape' + i"
+                      formControlName="shape"
+                      [options]="shapeOptions"
+                      optionLabel="label"
+                      optionValue="value"
+                      [filter]="true"
+                      class="w-full"
+                    />
+                    <label [for]="'stoneShape' + i">Stone Shape</label>
+                  </p-floatlabel>
+
+                  <p-floatlabel variant="on">
+                    <p-select
+                      [id]="'stoneQuality' + i"
+                      formControlName="quality"
+                      [options]="getStoneQualityOptions(row.get('type')?.value)"
+                      optionLabel="label"
+                      optionValue="value"
+                      class="w-full"
+                    />
+                    <label [for]="'stoneQuality' + i">Quality</label>
+                  </p-floatlabel>
+
+                  <p-floatlabel variant="on">
+                    <p-inputNumber
+                      [id]="'stoneWeight' + i"
+                      formControlName="weight"
+                      [minFractionDigits]="2"
+                      [maxFractionDigits]="3"
+                      suffix=" ct"
+                      class="w-full"
+                    />
+                    <label [for]="'stoneWeight' + i">Avg. Size (ct)</label>
+                  </p-floatlabel>
+
+                  <p-floatlabel variant="on">
+                    <p-inputNumber
+                      [id]="'stonePieces' + i"
+                      formControlName="pieces"
+                      class="w-full"
+                    />
+                    <label [for]="'stonePieces' + i">No. of Pieces</label>
+                  </p-floatlabel>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </p-card>
+    </form>
+
+    <!-- RIGHT: PRICE PANEL -->
+    <div class="lg:col-span-1">
+      <div class="sticky top-6 space-y-4">
+        <!-- Estimated price header -->
+        <div
+          class="rounded-xl bg-gradient-to-br from-green-600 to-green-700 text-white p-5 shadow-sm"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div
+                class="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center"
+              >
+                <i class="pi pi-calculator text-lg"></i>
+              </div>
+              <span class="font-medium text-sm text-green-50"
+                >Estimated Price</span
+              >
+            </div>
+            <span
+              *ngIf="priceResult"
+              class="text-xs bg-white/15 rounded-full px-2 py-1"
+              >Approx.</span
+            >
+          </div>
+          <div class="text-3xl font-bold mt-3">
+            <i class="pi pi-indian-rupee text-2xl align-middle"></i>
+            {{ priceResult ? (priceResult.total | number: "1.0-0") : "—" }}
+          </div>
+        </div>
+
+        <div
+          *ngIf="!priceResult"
+          class="rounded-lg bg-gray-50 text-gray-500 text-sm px-4 py-3 flex items-center gap-2"
+        >
+          <i class="pi pi-info-circle"></i>
+          Select metal, diamond, or gemstone details to see the estimate.
+        </div>
+
+        <div
+          *ngIf="priceResult"
+          class="rounded-lg bg-green-50 text-green-700 text-sm px-4 py-3 flex items-center gap-2"
+        >
+          <i class="pi pi-check-circle"></i>
+          Price calculated based on the details you provided.
+        </div>
+
+        <div
+          *ngIf="priceResult && priceResult.missingRates.length"
+          class="rounded-lg bg-amber-50 text-amber-700 text-sm px-4 py-3 flex items-start gap-2"
+        >
+          <i class="pi pi-exclamation-triangle mt-0.5"></i>
+          <span
+            >No rate found for: {{ priceResult.missingRates.join(", ") }}. These
+            rows were left out of the total.</span
+          >
+        </div>
+
+        <!-- Breakdown -->
+        <p-card *ngIf="priceResult">
+          <div class="flex items-center gap-2 mb-4">
+            <i class="pi pi-wallet text-gray-600"></i>
+            <h3 class="font-semibold text-gray-800">Price Breakdown</h3>
+          </div>
+
+          <div class="space-y-4 text-sm">
+            <div
+              *ngIf="priceResult.metal"
+              class="flex justify-between items-start pb-4 border-b border-gray-100"
+            >
+              <div class="flex gap-2">
+                <i class="pi pi-box text-amber-600 mt-0.5"></i>
+                <div>
+                  <div class="font-medium text-gray-800">
+                    Metal ({{ priceResult.metal.purity }})
+                  </div>
+                  <div class="text-xs text-gray-500">
+                    Weight: {{ priceResult.metal.weight }} g &nbsp;|&nbsp;
+                    Purity: {{ priceResult.metal.purity }}
+                  </div>
+                </div>
+              </div>
+              <span class="font-semibold text-gray-800 whitespace-nowrap"
+                >₹ {{ priceResult.metal.amount | number: "1.0-0" }}</span
+              >
+            </div>
+
+            <div
+              *ngFor="let d of priceResult.diamonds; let last = last"
+              class="flex justify-between items-start pb-4"
+              [class.border-b]="!last || priceResult.stones.length"
+              [class.border-gray-100]="!last || priceResult.stones.length"
+            >
+              <div class="flex gap-2">
+                <i class="pi pi-star text-blue-600 mt-0.5"></i>
+                <div>
+                  <div class="font-medium text-gray-800">Diamond</div>
+                  <div class="text-xs text-gray-500">
+                    Shape: {{ labelFor(shapeOptions, d.shape) }} &nbsp;|&nbsp;
+                    Quality:
+                    {{ labelFor(diamondQualityOptions, d.quality) }}
+                  </div>
+                  <div class="text-xs text-gray-500">
+                    Weight: {{ d.weight }} ct &nbsp;|&nbsp; Pieces:
+                    {{ d.pieces }}
+                  </div>
+                </div>
+              </div>
+              <span class="font-semibold text-gray-800 whitespace-nowrap"
+                >₹ {{ d.amount | number: "1.0-0" }}</span
+              >
+            </div>
+
+            <div
+              *ngFor="let s of priceResult.stones; let last = last"
+              class="flex justify-between items-start pb-4"
+              [class.border-b]="!last"
+              [class.border-gray-100]="!last"
+            >
+              <div class="flex gap-2">
+                <i class="pi pi-heart-fill text-emerald-600 mt-0.5"></i>
+                <div>
+                  <div class="font-medium text-gray-800">
+                    Gemstone ({{ s.label }})
+                  </div>
+                  <div class="text-xs text-gray-500">
+                    Shape: {{ labelFor(shapeOptions, s.shape) }} &nbsp;|&nbsp;
+                    Quality:
+                    {{ labelFor(getStoneQualityOptions(s.code), s.quality) }}
+                  </div>
+                  <div class="text-xs text-gray-500">
+                    Weight: {{ s.weight }} ct &nbsp;|&nbsp; Pieces:
+                    {{ s.pieces }}
+                  </div>
+                </div>
+              </div>
+              <span class="font-semibold text-gray-800 whitespace-nowrap"
+                >₹ {{ s.amount | number: "1.0-0" }}</span
+              >
+            </div>
+
+            <div class="flex justify-between text-gray-600">
+              <span>Subtotal</span>
+              <span>₹ {{ priceResult.subtotal | number: "1.0-0" }}</span>
+            </div>
+            <div class="flex justify-between text-gray-600">
+              <span>Estimated Making Charges</span>
+              <span>₹ {{ priceResult.makingCharges | number: "1.0-0" }}</span>
+            </div>
+            <div class="flex justify-between text-gray-600">
+              <span>Tax ({{ priceResult.taxPercent }}%)</span>
+              <span>₹ {{ priceResult.taxAmount | number: "1.0-0" }}</span>
+            </div>
+
+            <div
+              class="flex justify-between items-center bg-green-50 rounded-lg px-4 py-3 mt-2"
+            >
+              <span class="font-semibold text-green-800"
+                >Total Estimated Price</span
+              >
+              <span class="font-bold text-green-800 text-lg"
+                >₹ {{ priceResult.total | number: "1.0-0" }}</span
+              >
+            </div>
+          </div>
+        </p-card>
+
+        <!-- Important notes -->
+        <div class="rounded-lg bg-blue-50 border border-blue-100 p-4 text-sm">
+          <div class="flex items-center gap-2 font-medium text-blue-800 mb-2">
+            <i class="pi pi-info-circle"></i>
+            Important Notes
+          </div>
+          <ul class="list-disc list-inside text-blue-700 space-y-1 text-xs">
+            <li>
+              Final price may vary based on actual weight and market rates.
+            </li>
+            <li>Making charges may differ based on design complexity.</li>
+            <li>This is an estimated price and not a final quote.</li>
+          </ul>
+        </div>
+
+        <p-button
+          label="Calculate Price"
+          icon="pi pi-calculator"
+          iconPos="left"
+          styleClass="w-full justify-center"
+          (onClick)="calculatePrice()"
+        >
+        </p-button>
+      </div>
+    </div>
+  </div>
+</div>

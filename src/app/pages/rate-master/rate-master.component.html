@@ -1,0 +1,756 @@
+<p-toast></p-toast>
+<p-confirmdialog></p-confirmdialog>
+
+<div class="p-4 sm:p-6">
+  <p-tabs value="0">
+    <p-tablist>
+      <p-tab value="0">Metal Rates</p-tab>
+      <p-tab value="1">Diamond Price Charts</p-tab>
+      <p-tab value="2">Gemstone Price Charts</p-tab>
+    </p-tablist>
+
+    <p-tabpanels>
+      <!-- METAL RATES -->
+      <p-tabpanel value="0">
+        <div class="flex flex-col sm:flex-row justify-end mb-4 gap-3">
+          <button
+            (click)="openAdd('metal')"
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm cursor-pointer"
+          >
+            <i class="pi pi-plus text-sm"></i>
+            <span>Add Metal Rate</span>
+          </button>
+        </div>
+
+        <div
+          class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto"
+        >
+          <p-table
+            [value]="metalRates"
+            [paginator]="true"
+            [rows]="10"
+            dataKey="_id"
+            responsiveLayout="scroll"
+          >
+            <ng-template pTemplate="header">
+              <tr class="bg-slate-50/50 border-b border-slate-100">
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Metal
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Purity
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Rate / gram
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Status
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Actions
+                </th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-row>
+              <tr
+                class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
+              >
+                <td
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-sm font-medium text-slate-700 whitespace-nowrap"
+                >
+                  {{ labelFor(metalTypeOptions, row.metalType) }}
+                </td>
+                <td
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-sm text-slate-500 whitespace-nowrap"
+                >
+                  {{ row.purity }}
+                </td>
+                <td
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-sm text-slate-500 whitespace-nowrap"
+                >
+                  {{ row.ratePerGram | number: "1.2-2" }}
+                </td>
+                <td class="py-3 sm:py-4 px-4 sm:px-6">
+                  <button
+                    (click)="toggleActive('metal', row)"
+                    [ngClass]="
+                      row.isActive
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                    "
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border cursor-pointer transition-all whitespace-nowrap"
+                  >
+                    <span
+                      [ngClass]="
+                        row.isActive ? 'bg-emerald-500' : 'bg-rose-500'
+                      "
+                      class="w-1.5 h-1.5 rounded-full"
+                    ></span>
+                    {{ row.isActive ? "Active" : "Inactive" }}
+                  </button>
+                </td>
+                <td class="py-3 sm:py-4 px-4 sm:px-6">
+                  <div class="flex items-center justify-end gap-2">
+                    <button
+                      (click)="openEdit('metal', row)"
+                      class="w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50/50 flex items-center justify-center transition-all cursor-pointer"
+                    >
+                      <i class="pi pi-pencil text-xs"></i>
+                    </button>
+                    <button
+                      (click)="confirmDelete('metal', row)"
+                      class="w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50/50 flex items-center justify-center transition-all cursor-pointer"
+                    >
+                      <i class="pi pi-trash text-xs"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td
+                  colspan="5"
+                  class="text-center py-12 text-slate-400 text-sm"
+                >
+                  No metal rates added yet.
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </p-tabpanel>
+
+      <!-- DIAMOND PRICE CHARTS -->
+      <p-tabpanel value="1">
+        <div class="flex flex-col sm:flex-row justify-end mb-4 gap-3">
+          <button
+            (click)="openAdd('diamond')"
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm cursor-pointer"
+          >
+            <i class="pi pi-plus text-sm"></i>
+            <span>Add Diamond Price Chart</span>
+          </button>
+        </div>
+
+        <div
+          class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto"
+        >
+          <p-table
+            [value]="diamondCharts"
+            [paginator]="true"
+            [rows]="10"
+            dataKey="_id"
+            responsiveLayout="scroll"
+          >
+            <ng-template pTemplate="header">
+              <tr class="bg-slate-50/50 border-b border-slate-100">
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Stone Type
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Shape
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Pricing Model
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Bands
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Status
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Actions
+                </th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-row>
+              <tr
+                class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
+              >
+                <td
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-sm font-medium text-slate-700 whitespace-nowrap"
+                >
+                  {{ row.stoneType }}
+                </td>
+                <td
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-sm text-slate-500 whitespace-nowrap"
+                >
+                  {{ row.shape || "—" }}
+                </td>
+                <td
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-sm text-slate-500 whitespace-nowrap"
+                >
+                  {{ labelFor(pricingModelOptions, row.pricingModel) }}
+                </td>
+                <td
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-sm text-slate-500 whitespace-nowrap"
+                >
+                  {{ bandSummary(row) }}
+                </td>
+                <td class="py-3 sm:py-4 px-4 sm:px-6">
+                  <button
+                    (click)="toggleActive('diamond', row)"
+                    [ngClass]="
+                      row.isActive
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                    "
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border cursor-pointer transition-all whitespace-nowrap"
+                  >
+                    <span
+                      [ngClass]="
+                        row.isActive ? 'bg-emerald-500' : 'bg-rose-500'
+                      "
+                      class="w-1.5 h-1.5 rounded-full"
+                    ></span>
+                    {{ row.isActive ? "Active" : "Inactive" }}
+                  </button>
+                </td>
+                <td class="py-3 sm:py-4 px-4 sm:px-6">
+                  <div class="flex items-center justify-start gap-2">
+                    <button
+                      (click)="openEdit('diamond', row)"
+                      class="w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50/50 flex items-center justify-center transition-all cursor-pointer"
+                    >
+                      <i class="pi pi-pencil text-xs"></i>
+                    </button>
+                    <button
+                      (click)="confirmDelete('diamond', row)"
+                      class="w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50/50 flex items-center justify-center transition-all cursor-pointer"
+                    >
+                      <i class="pi pi-trash text-xs"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td
+                  colspan="6"
+                  class="text-center py-12 text-slate-400 text-sm"
+                >
+                  No diamond price charts added yet.
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </p-tabpanel>
+
+      <!-- GEMSTONE PRICE CHARTS -->
+      <p-tabpanel value="2">
+        <div class="flex flex-col sm:flex-row justify-end mb-4 gap-3">
+          <button
+            (click)="openAdd('stone')"
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm cursor-pointer"
+          >
+            <i class="pi pi-plus text-sm"></i>
+            <span>Add Gemstone Price Chart</span>
+          </button>
+        </div>
+
+        <div
+          class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto"
+        >
+          <p-table
+            [value]="gemstoneCharts"
+            [paginator]="true"
+            [rows]="10"
+            dataKey="_id"
+            responsiveLayout="scroll"
+          >
+            <ng-template pTemplate="header">
+              <tr class="bg-slate-50/50 border-b border-slate-100">
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Stone Type
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Shape
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Pricing Model
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Bands
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Status
+                </th>
+                <th
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Actions
+                </th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-row>
+              <tr
+                class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
+              >
+                <td
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-sm font-medium text-slate-700 whitespace-nowrap"
+                >
+                  {{ row.stoneType }}
+                </td>
+                <td
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-sm text-slate-500 whitespace-nowrap"
+                >
+                  {{ row.shape || "—" }}
+                </td>
+                <td
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-sm text-slate-500 whitespace-nowrap"
+                >
+                  {{ labelFor(pricingModelOptions, row.pricingModel) }}
+                </td>
+                <td
+                  class="py-3 sm:py-4 px-4 sm:px-6 text-sm text-slate-500 whitespace-nowrap"
+                >
+                  {{ bandSummary(row) }}
+                </td>
+                <td class="py-3 sm:py-4 px-4 sm:px-6">
+                  <button
+                    (click)="toggleActive('stone', row)"
+                    [ngClass]="
+                      row.isActive
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                    "
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border cursor-pointer transition-all whitespace-nowrap"
+                  >
+                    <span
+                      [ngClass]="
+                        row.isActive ? 'bg-emerald-500' : 'bg-rose-500'
+                      "
+                      class="w-1.5 h-1.5 rounded-full"
+                    ></span>
+                    {{ row.isActive ? "Active" : "Inactive" }}
+                  </button>
+                </td>
+                <td class="py-3 sm:py-4 px-4 sm:px-6">
+                  <div class="flex items-center justify-start gap-2">
+                    <button
+                      (click)="openEdit('stone', row)"
+                      class="w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50/50 flex items-center justify-center transition-all cursor-pointer"
+                    >
+                      <i class="pi pi-pencil text-xs"></i>
+                    </button>
+                    <button
+                      (click)="confirmDelete('stone', row)"
+                      class="w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50/50 flex items-center justify-center transition-all cursor-pointer"
+                    >
+                      <i class="pi pi-trash text-xs"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td
+                  colspan="6"
+                  class="text-center py-12 text-slate-400 text-sm"
+                >
+                  No gemstone price charts added yet.
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </p-tabpanel>
+    </p-tabpanels>
+  </p-tabs>
+</div>
+
+<!-- ADD / EDIT DIALOG -->
+<p-dialog
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [style]="{ width: '640px' }"
+  [breakpoints]="{ '960px': '90vw' }"
+  [draggable]="false"
+  [resizable]="false"
+>
+  <ng-template pTemplate="header">
+    <span class="font-semibold text-slate-700">
+      @switch (activeKind) {
+        @case ("metal") {
+          {{ dialogMode === "add" ? "Add Metal Rate" : "Edit Metal Rate" }}
+        }
+        @case ("diamond") {
+          {{
+            dialogMode === "add"
+              ? "Add Diamond Price Chart"
+              : "Edit Diamond Price Chart"
+          }}
+        }
+        @default {
+          {{
+            dialogMode === "add"
+              ? "Add Gemstone Price Chart"
+              : "Edit Gemstone Price Chart"
+          }}
+        }
+      }
+    </span>
+  </ng-template>
+
+  <!-- METAL FORM -->
+  @if (activeKind === "metal") {
+    <form [formGroup]="metalForm" class="flex flex-col gap-4 pt-2">
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-medium text-slate-600">Metal</label>
+        <p-select
+          formControlName="metalType"
+          [options]="metalTypeOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Select metal"
+          styleClass="w-full"
+        ></p-select>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-medium text-slate-600">Purity</label>
+        <p-select
+          formControlName="purity"
+          [options]="metalPurityOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Select purity"
+          styleClass="w-full"
+        ></p-select>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-medium text-slate-600">Rate per gram</label>
+        <p-inputnumber
+          formControlName="ratePerGram"
+          mode="decimal"
+          [minFractionDigits]="2"
+          [maxFractionDigits]="2"
+          styleClass="w-full"
+        ></p-inputnumber>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <p-toggleswitch formControlName="isActive"></p-toggleswitch>
+        <span class="text-sm text-slate-600">Active</span>
+      </div>
+    </form>
+  }
+
+  <!-- DIAMOND / GEMSTONE CHART FORM -->
+  @if (activeKind === "diamond" || activeKind === "stone") {
+    <form [formGroup]="chartForm" class="flex flex-col gap-4 pt-2">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <label class="text-sm font-medium text-slate-600">Stone Type</label>
+            <button
+              type="button"
+              (click)="toggleCustomStoneType(!useCustomStoneType)"
+              class="text-xs font-medium text-emerald-700 hover:text-emerald-800 cursor-pointer"
+            >
+              {{ useCustomStoneType ? "Choose existing" : "+ New stone type" }}
+            </button>
+          </div>
+
+          @if (!useCustomStoneType) {
+            <!-- FIX: bound to the full option object so we can push BOTH name + code
+                 into chartForm at once via onStoneTypeSelect -->
+            <p-select
+              [options]="typeOptionsForActiveKind"
+              optionLabel="stoneType"
+              [ngModel]="selectedStoneTypeObj"
+              [ngModelOptions]="{ standalone: true }"
+              (onChange)="onStoneTypeSelect($event.value)"
+              placeholder="Select stone type"
+              styleClass="w-full"
+            ></p-select>
+          } @else {
+            <div class="grid grid-cols-2 gap-2">
+              <input
+                pInputText
+                formControlName="stoneType"
+                placeholder="Name (e.g. Peridot)"
+                class="text-sm"
+              />
+              <input
+                pInputText
+                formControlName="stoneCode"
+                placeholder="Code (e.g. PD)"
+                class="text-sm"
+              />
+            </div>
+          }
+          @if (
+            chartForm.get("stoneCode")?.touched &&
+            chartForm.get("stoneCode")?.invalid
+          ) {
+            <span class="text-xs text-rose-600">Stone type is required.</span>
+          }
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <label class="text-sm font-medium text-slate-600"
+              >Shape (optional)</label
+            >
+            <button
+              type="button"
+              (click)="toggleCustomShape(!useCustomShape)"
+              class="text-xs font-medium text-emerald-700 hover:text-emerald-800 cursor-pointer"
+            >
+              {{ useCustomShape ? "Choose existing" : "+ New shape" }}
+            </button>
+          </div>
+
+          @if (!useCustomShape) {
+            <p-select
+              [options]="shapeOptions"
+              optionLabel="shape"
+              [ngModel]="selectedShapeObj"
+              [ngModelOptions]="{ standalone: true }"
+              (onChange)="onShapeSelect($event.value)"
+              placeholder="Select shape"
+              [showClear]="true"
+              styleClass="w-full"
+            ></p-select>
+          } @else {
+            <div class="grid grid-cols-2 gap-2">
+              <input
+                pInputText
+                formControlName="shape"
+                placeholder="Name (e.g. Cabochon)"
+                class="text-sm"
+              />
+              <input
+                pInputText
+                formControlName="shapeCode"
+                placeholder="Code (e.g. CB)"
+                class="text-sm"
+              />
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-medium text-slate-600">Pricing Model</label>
+        <p-select
+          formControlName="pricingModel"
+          [options]="pricingModelOptions"
+          optionLabel="label"
+          optionValue="value"
+          (onChange)="onPricingModelChange()"
+          styleClass="w-full"
+        ></p-select>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <p-toggleswitch formControlName="isActive"></p-toggleswitch>
+        <span class="text-sm text-slate-600">Active</span>
+      </div>
+
+      <!-- SINGLE FLAT: one rate, no size bands -->
+      @if (isSingleFlat) {
+        <div formArrayName="bands">
+          <div [formGroupName]="0">
+            <div formArrayName="rates">
+              <div [formGroupName]="0" class="flex flex-col gap-1.5">
+                <label class="text-sm font-medium text-slate-600"
+                  >Rate (per carat)</label
+                >
+                <p-inputnumber
+                  formControlName="value"
+                  mode="decimal"
+                  [minFractionDigits]="2"
+                  [maxFractionDigits]="2"
+                  styleClass="w-full"
+                ></p-inputnumber>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- GRADE_BANDED / SIZE_BANDED_FLAT: full band + rate editor -->
+      @if (!isSingleFlat) {
+        <div class="flex items-center justify-between">
+          <label class="text-sm font-medium text-slate-600">Size Bands</label>
+          <button
+            type="button"
+            (click)="addBandRow()"
+            class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-800 cursor-pointer"
+          >
+            <i class="pi pi-plus text-xs"></i> Add band
+          </button>
+        </div>
+
+        <div formArrayName="bands" class="flex flex-col gap-4">
+          @for (
+            band of bandsArray.controls;
+            track band;
+            let bandIndex = $index
+          ) {
+            <div
+              [formGroupName]="bandIndex"
+              class="border border-slate-200 rounded-xl p-4 flex flex-col gap-3"
+            >
+              <div class="flex items-center justify-between">
+                <span
+                  class="text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                >
+                  Band {{ bandIndex + 1 }}
+                </span>
+                @if (bandsArray.length > 1) {
+                  <button
+                    type="button"
+                    (click)="removeBandRow(bandIndex)"
+                    class="text-rose-500 hover:text-rose-600 cursor-pointer"
+                  >
+                    <i class="pi pi-trash text-xs"></i>
+                  </button>
+                }
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-xs text-slate-500">Size min (ct)</label>
+                  <p-inputnumber
+                    formControlName="sizeMin"
+                    mode="decimal"
+                    [minFractionDigits]="2"
+                    [maxFractionDigits]="2"
+                    styleClass="w-full"
+                  ></p-inputnumber>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-xs text-slate-500">Size max (ct)</label>
+                  <p-inputnumber
+                    formControlName="sizeMax"
+                    mode="decimal"
+                    [minFractionDigits]="2"
+                    [maxFractionDigits]="2"
+                    styleClass="w-full"
+                  ></p-inputnumber>
+                </div>
+              </div>
+
+              <!-- Quick-add preset grade/quality keys -->
+              <div class="flex flex-wrap gap-2">
+                @for (
+                  preset of presetKeysFor(chartForm.get("pricingModel")?.value);
+                  track preset
+                ) {
+                  <button
+                    type="button"
+                    (click)="addRateEntry(bandIndex, preset)"
+                    class="px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700 hover:bg-emerald-50/50 cursor-pointer"
+                  >
+                    + {{ preset }}
+                  </button>
+                }
+                <button
+                  type="button"
+                  (click)="addRateEntry(bandIndex)"
+                  class="px-2.5 py-1 rounded-lg text-xs font-medium border border-dashed border-slate-300 text-slate-500 hover:border-slate-400 cursor-pointer"
+                >
+                  + Custom key
+                </button>
+              </div>
+
+              <div formArrayName="rates" class="flex flex-col gap-2">
+                @for (
+                  rate of ratesArrayFor(bandIndex).controls;
+                  track rate;
+                  let rateIndex = $index
+                ) {
+                  <div
+                    [formGroupName]="rateIndex"
+                    class="flex items-center gap-2"
+                  >
+                    <input
+                      pInputText
+                      formControlName="key"
+                      placeholder="key (e.g. G-H_SI)"
+                      class="flex-1 text-sm"
+                    />
+                    <p-inputnumber
+                      formControlName="value"
+                      mode="decimal"
+                      [minFractionDigits]="2"
+                      [maxFractionDigits]="2"
+                      placeholder="rate/ct"
+                    ></p-inputnumber>
+                    @if (ratesArrayFor(bandIndex).length > 1) {
+                      <button
+                        type="button"
+                        (click)="removeRateEntry(bandIndex, rateIndex)"
+                        class="text-rose-500 hover:text-rose-600 cursor-pointer"
+                      >
+                        <i class="pi pi-times text-xs"></i>
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </form>
+  }
+
+  <ng-template pTemplate="footer">
+    <button
+      type="button"
+      (click)="dialogVisible = false"
+      class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 cursor-pointer"
+    >
+      Cancel
+    </button>
+    <button
+      type="button"
+      (click)="save()"
+      class="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+    >
+      Save
+    </button>
+  </ng-template>
+</p-dialog>
