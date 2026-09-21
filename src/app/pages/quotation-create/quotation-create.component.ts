@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import {
   FormArray,
   FormBuilder,
+  FormControl,
   FormGroup,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { forkJoin, of } from 'rxjs';
+import { forkJoin, merge, of } from 'rxjs';
 import { catchError, debounceTime, map } from 'rxjs/operators';
 
 import {
@@ -21,6 +22,10 @@ import {
   StonePriceChart,
   StonePriceChartResult,
 } from '../../services/rates/stone-price-chart.service';
+import {
+  CNumberService,
+  CNumberRates,
+} from '../../services/rates/c-number.service';
 
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { InputTextModule } from 'primeng/inputtext';
@@ -34,8 +39,8 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 // Must match the DIAMOND_CODE constant in stone-price-charts.controller.js
 const DIAMOND_CODE = 'DW';
 
-const MAKING_CHARGES = 1200; // TODO: replace with a real setting once making-charges master exists
-const TAX_PERCENT = 3; // TODO: replace with a real tax setting
+type Country = 'india' | 'restOfWorld';
+type MakingChargeMode = 'flat' | 'percentage';
 
 interface SelectOption {
   label: string;
@@ -71,11 +76,16 @@ interface PriceResult {
   } | null;
   diamonds: DiamondLine[];
   stones: StoneLine[];
-  subtotal: number;
-  makingCharges: number;
-  taxPercent: number;
-  taxAmount: number;
-  total: number;
+  makingCharge: {
+    mode: MakingChargeMode;
+    value: number;
+    amount: number;
+  } | null;
+  rawSum: number; // metal + diamonds + stones + making charge, before /100 and the country markup
+  cNo: number; // rawSum / 100 — the "get_cNo"
+  country: Country;
+  countryFactor: number | null; // 130 (India) or 150 (Rest of World), from GET /api/c-numbers
+  total: number; // cNo * countryFactor
   missingRates: string[]; // e.g. ['Diamond #2'] for rows that couldn't be priced
 }
 
@@ -103,6 +113,7 @@ export class QuotationCreateComponent implements OnInit {
 
   private metalRateService = inject(MetalRateService);
   private stonePriceChartService = inject(StonePriceChartService);
+  private cNumberService = inject(CNumberService);
 
   metalPurityOptions: MetalPurity[] = [];
 
@@ -127,6 +138,30 @@ export class QuotationCreateComponent implements OnInit {
     { label: 'Anita Shah', value: 'Anita Shah' },
     { label: 'Vikram Mehta', value: 'Vikram Mehta' },
   ];
+
+  // Country selector shown beside the page title. Drives which c-number
+  // (India 130% / Rest of World 150%, from GET /api/c-numbers) is applied
+  // as the final markup.
+  countryOptions: SelectOption[] = [
+    { label: 'India', value: 'india' },
+    { label: 'Rest of World', value: 'restOfWorld' },
+  ];
+  countryControl = new FormControl<Country>('india', { nonNullable: true });
+
+  // Making charge, entered by the user in the Estimated Price panel —
+  // either a flat rate (₹ per gram of metal weight) or a percentage.
+  // Kept as standalone controls (outside quotationForm) since it lives in
+  // the price panel rather than the main form.
+  makingChargeModeOptions: SelectOption[] = [
+    { label: 'Flat (₹ / g)', value: 'flat' },
+    { label: 'Percentage (%)', value: 'percentage' },
+  ];
+  makingChargeModeControl = new FormControl<MakingChargeMode>('flat', {
+    nonNullable: true,
+  });
+  makingChargeValueControl = new FormControl<number | null>(null);
+
+  cNumberRates: CNumberRates | null = null;
 
   loadingOptions = true;
   loadError = false;
@@ -219,6 +254,7 @@ export class QuotationCreateComponent implements OnInit {
     forkJoin({
       metalPurities: this.metalPurityService.getAll(),
       priceCharts: this.stonePriceChartService.getCharts(),
+      cNumbers: this.cNumberService.getCurrent(),
     }).subscribe({
       next: (r) => {
         this.metalPurityOptions = r.metalPurities.filter((o) => o.isActive);
@@ -230,10 +266,18 @@ export class QuotationCreateComponent implements OnInit {
         // GET /stone-price-charts call.
         this.stonePriceChartService.primeChartsCache(r.priceCharts || []);
 
+        this.cNumberRates = r.cNumbers;
+
         this.loadingOptions = false;
 
-        // Recalculate live as the user fills the form
-        this.quotationForm.valueChanges
+        // Recalculate live as the user fills the main form, changes the
+        // country, or edits the making charge.
+        merge(
+          this.quotationForm.valueChanges,
+          this.countryControl.valueChanges,
+          this.makingChargeModeControl.valueChanges,
+          this.makingChargeValueControl.valueChanges,
+        )
           .pipe(debounceTime(400))
           .subscribe(() => this.computeEstimate());
       },
@@ -324,10 +368,13 @@ export class QuotationCreateComponent implements OnInit {
   }
 
   // Runs every diamond & stone row through StonePriceChartService.calculate()
-  // (matched client-side against stoneCode + shape + weight band + quality,
-  // amount = the matched gradeRate itself — not multiplied by weight or
-  // pieces), syncs each row's controls to the normalized values, and
-  // rebuilds the breakdown.
+  // — each row's amount is (avg weight × pieces) × the matched gradeRates
+  // rate (see stone-price-chart.service.ts). Adds the user-entered making
+  // charge (flat ₹/g or % — both applied against metal weight, per the
+  // literal formula), sums everything into a base cost, divides by 100 to
+  // get the "c-number" (get_cNo), then multiplies by the selected
+  // country's markup (India 130% / Rest of World 150%, from
+  // GET /api/c-numbers).
   private computeEstimate(): void {
     const { metal } = this.quotationForm.value;
     const diamondRows: Array<{
@@ -501,19 +548,51 @@ export class QuotationCreateComponent implements OnInit {
         const diamondTotal = diamondLines.reduce((sum, l) => sum + l.amount, 0);
         const stoneTotal = stoneLines.reduce((sum, l) => sum + l.amount, 0);
 
-        const subtotal =
-          metalAmount + diamondTotal + stoneTotal + MAKING_CHARGES;
-        const taxAmount = Math.round((subtotal * TAX_PERCENT) / 100);
-        const total = subtotal + taxAmount;
+        // ---- Making charge ----
+        // Flat: value is a ₹-per-gram rate → value × metal weight.
+        // Percentage: applied directly against metal weight, per the
+        // literal formula ("making charges × metal weight") — NOT against
+        // the metal amount. Flip this to (value/100) * metalAmount if you
+        // actually meant % of metal value.
+        const makingChargeMode = this.makingChargeModeControl.value;
+        const makingChargeValueRaw = this.makingChargeValueControl.value;
+        let makingChargeAmount = 0;
+        let makingChargeLine: PriceResult['makingCharge'] = null;
+        if (makingChargeValueRaw != null && metal?.weight) {
+          makingChargeAmount =
+            makingChargeMode === 'percentage'
+              ? (makingChargeValueRaw / 100) * metal.weight
+              : makingChargeValueRaw * metal.weight;
+          makingChargeLine = {
+            mode: makingChargeMode,
+            value: makingChargeValueRaw,
+            amount: makingChargeAmount,
+          };
+        }
+
+        const rawSum =
+          metalAmount + diamondTotal + stoneTotal + makingChargeAmount;
+        const cNo = rawSum / 100;
+
+        const country = this.countryControl.value;
+        const countryFactor = this.cNumberRates
+          ? this.cNumberRates[country]
+          : null;
+        if (countryFactor == null) {
+          missingRates.push('Country markup rate');
+        }
+
+        const total = Math.round(cNo * (countryFactor ?? 0));
 
         this.priceResult = {
           metal: metalLine,
           diamonds: diamondLines,
           stones: stoneLines,
-          subtotal,
-          makingCharges: MAKING_CHARGES,
-          taxPercent: TAX_PERCENT,
-          taxAmount,
+          makingCharge: makingChargeLine,
+          rawSum,
+          cNo,
+          country,
+          countryFactor,
           total,
           missingRates,
         };

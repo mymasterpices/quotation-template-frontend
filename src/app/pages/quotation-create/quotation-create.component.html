@@ -1,17 +1,35 @@
 <div class="max-w-7xl mx-auto p-6">
   <!-- Page header -->
-  <div class="flex items-start gap-3 mb-6">
-    <div
-      class="w-11 h-11 rounded-lg bg-green-50 flex items-center justify-center text-green-700 shrink-0"
-    >
-      <i class="pi pi-file-edit text-xl"></i>
+  <div class="flex items-start justify-between gap-3 mb-6 flex-wrap">
+    <div class="flex items-start gap-3">
+      <div
+        class="w-11 h-11 rounded-lg bg-green-50 flex items-center justify-center text-green-700 shrink-0"
+      >
+        <i class="pi pi-file-edit text-xl"></i>
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Create Quotation</h1>
+        <p class="text-sm text-gray-500">
+          Enter the details below to get an estimated price for your custom
+          jewelry.
+        </p>
+      </div>
     </div>
-    <div>
-      <h1 class="text-2xl font-bold text-gray-800">Create Quotation</h1>
-      <p class="text-sm text-gray-500">
-        Enter the details below to get an estimated price for your custom
-        jewelry.
-      </p>
+
+    <!-- Country selector — drives which c-number markup (India / Rest of
+         World) is applied to the final total. -->
+    <div class="w-full sm:w-56">
+      <p-floatlabel variant="on">
+        <p-select
+          id="country"
+          [formControl]="countryControl"
+          [options]="countryOptions"
+          optionLabel="label"
+          optionValue="value"
+          class="w-full"
+        />
+        <label for="country">Country</label>
+      </p-floatlabel>
     </div>
   </div>
 
@@ -379,6 +397,39 @@
           </div>
         </div>
 
+        <!-- Making charge — entered by the user, applied against metal weight -->
+        <p-card>
+          <div class="flex items-center gap-2 mb-3">
+            <i class="pi pi-percentage text-gray-600"></i>
+            <h3 class="font-semibold text-gray-800 text-sm">Making Charge</h3>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <p-floatlabel variant="on">
+              <p-select
+                id="makingChargeMode"
+                [formControl]="makingChargeModeControl"
+                [options]="makingChargeModeOptions"
+                optionLabel="label"
+                optionValue="value"
+                class="w-full"
+              />
+              <label for="makingChargeMode">Type</label>
+            </p-floatlabel>
+
+            <p-floatlabel variant="on">
+              <p-inputNumber
+                id="makingChargeValue"
+                [formControl]="makingChargeValueControl"
+                [minFractionDigits]="0"
+                [maxFractionDigits]="2"
+                [suffix]="makingChargeModeControl.value === 'percentage' ? ' %' : ' /g'"
+                class="w-full"
+              />
+              <label for="makingChargeValue">Value</label>
+            </p-floatlabel>
+          </div>
+        </p-card>
+
         <div
           *ngIf="!priceResult"
           class="rounded-lg bg-gray-50 text-gray-500 text-sm px-4 py-3 flex items-center gap-2"
@@ -437,9 +488,7 @@
 
             <div
               *ngFor="let d of priceResult.diamonds; let last = last"
-              class="flex justify-between items-start pb-4"
-              [class.border-b]="!last || priceResult.stones.length"
-              [class.border-gray-100]="!last || priceResult.stones.length"
+              class="flex justify-between items-start pb-4 border-b border-gray-100"
             >
               <div class="flex gap-2">
                 <i class="pi pi-star text-blue-600 mt-0.5"></i>
@@ -452,7 +501,7 @@
                   </div>
                   <div class="text-xs text-gray-500">
                     Weight: {{ d.weight }} ct &nbsp;|&nbsp; Pieces:
-                    {{ d.pieces }}
+                    {{ d.pieces }} &nbsp;|&nbsp; Rate: ₹{{ d.rate | number: "1.0-0" }}/ct
                   </div>
                 </div>
               </div>
@@ -463,9 +512,7 @@
 
             <div
               *ngFor="let s of priceResult.stones; let last = last"
-              class="flex justify-between items-start pb-4"
-              [class.border-b]="!last"
-              [class.border-gray-100]="!last"
+              class="flex justify-between items-start pb-4 border-b border-gray-100"
             >
               <div class="flex gap-2">
                 <i class="pi pi-heart-fill text-emerald-600 mt-0.5"></i>
@@ -480,7 +527,7 @@
                   </div>
                   <div class="text-xs text-gray-500">
                     Weight: {{ s.weight }} ct &nbsp;|&nbsp; Pieces:
-                    {{ s.pieces }}
+                    {{ s.pieces }} &nbsp;|&nbsp; Rate: ₹{{ s.rate | number: "1.0-0" }}/ct
                   </div>
                 </div>
               </div>
@@ -489,17 +536,36 @@
               >
             </div>
 
-            <div class="flex justify-between text-gray-600">
-              <span>Subtotal</span>
-              <span>₹ {{ priceResult.subtotal | number: "1.0-0" }}</span>
+            <div
+              *ngIf="priceResult.makingCharge"
+              class="flex justify-between text-gray-600"
+            >
+              <span
+                >Making Charge ({{
+                  priceResult.makingCharge.mode === "percentage"
+                    ? priceResult.makingCharge.value + "%"
+                    : "₹" + priceResult.makingCharge.value + "/g"
+                }})</span
+              >
+              <span
+                >₹
+                {{ priceResult.makingCharge.amount | number: "1.0-0" }}</span
+              >
             </div>
+
             <div class="flex justify-between text-gray-600">
-              <span>Estimated Making Charges</span>
-              <span>₹ {{ priceResult.makingCharges | number: "1.0-0" }}</span>
+              <span>Base Cost</span>
+              <span>₹ {{ priceResult.rawSum | number: "1.0-0" }}</span>
             </div>
-            <div class="flex justify-between text-gray-600">
-              <span>Tax ({{ priceResult.taxPercent }}%)</span>
-              <span>₹ {{ priceResult.taxAmount | number: "1.0-0" }}</span>
+
+            <div class="flex justify-between text-xs text-gray-400">
+              <span>Country Markup</span>
+              <span
+                >{{
+                  priceResult.country === "india" ? "India" : "Rest of World"
+                }}
+                · {{ priceResult.countryFactor ?? "—" }}%</span
+              >
             </div>
 
             <div
@@ -525,7 +591,6 @@
             <li>
               Final price may vary based on actual weight and market rates.
             </li>
-            <li>Making charges may differ based on design complexity.</li>
             <li>This is an estimated price and not a final quote.</li>
           </ul>
         </div>

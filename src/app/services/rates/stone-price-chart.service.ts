@@ -150,8 +150,8 @@ export class StonePriceChartService {
    *  2. Within that chart, find the band where sizeMin <= weight <= sizeMax.
    *  3. Look up gradeRates[quality] in that band.
    *  4. That value IS the amount — it is NOT multiplied by weight and NOT
-   *     multiplied by pieces. `pieces` is only carried through on the result
-   *     for display purposes.
+   *     multiplied by pieces. `weight`/`pieces` are only carried through on
+   *     the result for display purposes.
    *
    * Returns null (rather than throwing) when nothing matches — the caller
    * (quotation-create.component) already treats a null result as a missing
