@@ -25,6 +25,10 @@ import {
   MetalPurityService,
   MetalPurity,
 } from '../../services/metal-purity.service';
+import {
+  CNumberService,
+  CNumberRates,
+} from '../../services/rates/c-number.service';
 
 import { TabsModule } from 'primeng/tabs';
 import { TableModule } from 'primeng/table';
@@ -172,6 +176,16 @@ export class RateMasterComponent implements OnInit {
   selectedStoneTypeObj: StoneTypeOption | null = null;
   selectedShapeObj: ShapeOption | null = null;
 
+  // --- C-Number (country markup) ---
+  private cNumberService = inject(CNumberService);
+  cNumberRecord: CNumberRates | null = null;
+  cNumberLoading = true;
+  cNumberSaving = false;
+  cNumberForm: FormGroup = this.fb.group({
+    india: [null, [Validators.required, Validators.min(0)]],
+    restOfWorld: [null, [Validators.required, Validators.min(0)]],
+  });
+
   // --- Shared dialog/table state ---
   dialogVisible = false;
   dialogMode: 'add' | 'edit' = 'add';
@@ -181,6 +195,7 @@ export class RateMasterComponent implements OnInit {
   ngOnInit(): void {
     this.loadLookups();
     this.loadAllRates();
+    this.loadCNumber();
   }
 
   private loadLookups(): void {
@@ -215,6 +230,56 @@ export class RateMasterComponent implements OnInit {
       this.gemstoneCharts = all.filter(
         (c) => !DIAMOND_CODES.includes(c.stoneCode.toUpperCase()),
       );
+    });
+  }
+
+  private loadCNumber(): void {
+    this.cNumberLoading = true;
+    this.cNumberService.getCurrent().subscribe({
+      next: (rec) => {
+        this.cNumberRecord = rec;
+        this.cNumberForm.patchValue({
+          india: rec.india,
+          restOfWorld: rec.restOfWorld,
+        });
+        this.cNumberLoading = false;
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.cNumberLoading = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Failed to load country markup',
+        });
+      },
+    });
+  }
+
+  saveCNumber(): void {
+    if (this.cNumberForm.invalid || !this.cNumberRecord) {
+      this.cNumberForm.markAllAsTouched();
+      return;
+    }
+    this.cNumberSaving = true;
+    this.cNumberService.update(this.cNumberForm.value).subscribe({
+      next: (rec) => {
+        this.cNumberRecord = rec;
+        this.cNumberSaving = false;
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Country markup updated',
+          life: 2500,
+        });
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.cNumberSaving = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Save failed',
+          detail: err.error?.message ?? 'Server error',
+        });
+      },
     });
   }
 

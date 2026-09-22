@@ -77,16 +77,15 @@ interface PriceResult {
   diamonds: DiamondLine[];
   stones: StoneLine[];
   makingCharge: {
-    mode: MakingChargeMode;
     value: number;
     amount: number;
   } | null;
-  rawSum: number; // metal + diamonds + stones + making charge, before /100 and the country markup
-  cNo: number; // rawSum / 100 — the "get_cNo"
+  rawSum: number;
+  cNo: number;
   country: Country;
-  countryFactor: number | null; // 130 (India) or 150 (Rest of World), from GET /api/c-numbers
-  total: number; // cNo * countryFactor
-  missingRates: string[]; // e.g. ['Diamond #2'] for rows that couldn't be priced
+  countryFactor: number | null;
+  total: number;
+  missingRates: string[];
 }
 
 @Component({
@@ -152,13 +151,7 @@ export class QuotationCreateComponent implements OnInit {
   // either a flat rate (₹ per gram of metal weight) or a percentage.
   // Kept as standalone controls (outside quotationForm) since it lives in
   // the price panel rather than the main form.
-  makingChargeModeOptions: SelectOption[] = [
-    { label: 'Flat (₹ / g)', value: 'flat' },
-    { label: 'Percentage (%)', value: 'percentage' },
-  ];
-  makingChargeModeControl = new FormControl<MakingChargeMode>('flat', {
-    nonNullable: true,
-  });
+
   makingChargeValueControl = new FormControl<number | null>(null);
 
   cNumberRates: CNumberRates | null = null;
@@ -275,7 +268,6 @@ export class QuotationCreateComponent implements OnInit {
         merge(
           this.quotationForm.valueChanges,
           this.countryControl.valueChanges,
-          this.makingChargeModeControl.valueChanges,
           this.makingChargeValueControl.valueChanges,
         )
           .pipe(debounceTime(400))
@@ -368,13 +360,13 @@ export class QuotationCreateComponent implements OnInit {
   }
 
   // Runs every diamond & stone row through StonePriceChartService.calculate()
-  // — each row's amount is (avg weight × pieces) × the matched gradeRates
-  // rate (see stone-price-chart.service.ts). Adds the user-entered making
-  // charge (flat ₹/g or % — both applied against metal weight, per the
-  // literal formula), sums everything into a base cost, divides by 100 to
-  // get the "c-number" (get_cNo), then multiplies by the selected
-  // country's markup (India 130% / Rest of World 150%, from
-  // GET /api/c-numbers).
+  // — each row's amount is the matched gradeRates value directly (no
+  // multiplication by weight or pieces; see stone-price-chart.service.ts).
+  // Adds the user-entered making charge (flat ₹/g or % — both applied
+  // against metal weight, per the literal formula), sums everything into a
+  // base cost, divides by 100 to get the "c-number" (get_cNo), then
+  // multiplies by the selected country's markup (India 130% / Rest of
+  // World 150%, from GET /api/c-numbers).
   private computeEstimate(): void {
     const { metal } = this.quotationForm.value;
     const diamondRows: Array<{
@@ -554,22 +546,16 @@ export class QuotationCreateComponent implements OnInit {
         // literal formula ("making charges × metal weight") — NOT against
         // the metal amount. Flip this to (value/100) * metalAmount if you
         // actually meant % of metal value.
-        const makingChargeMode = this.makingChargeModeControl.value;
         const makingChargeValueRaw = this.makingChargeValueControl.value;
         let makingChargeAmount = 0;
         let makingChargeLine: PriceResult['makingCharge'] = null;
         if (makingChargeValueRaw != null && metal?.weight) {
-          makingChargeAmount =
-            makingChargeMode === 'percentage'
-              ? (makingChargeValueRaw / 100) * metal.weight
-              : makingChargeValueRaw * metal.weight;
+          makingChargeAmount = makingChargeValueRaw * metal.weight;
           makingChargeLine = {
-            mode: makingChargeMode,
             value: makingChargeValueRaw,
             amount: makingChargeAmount,
           };
         }
-
         const rawSum =
           metalAmount + diamondTotal + stoneTotal + makingChargeAmount;
         const cNo = rawSum / 100;

@@ -1,12 +1,14 @@
+<div class="container max-w-full bg-gray-200 h-screen">
 <p-toast></p-toast>
 <p-confirmdialog></p-confirmdialog>
 
-<div class="p-4 sm:p-6">
+<div class="p-6 ">
   <p-tabs value="0">
     <p-tablist>
       <p-tab value="0">Metal Rates</p-tab>
       <p-tab value="1">Diamond Price Charts</p-tab>
       <p-tab value="2">Gemstone Price Charts</p-tab>
+      <p-tab value="3">Country Markup (C-Number)</p-tab>
     </p-tablist>
 
     <p-tabpanels>
@@ -392,9 +394,106 @@
           </p-table>
         </div>
       </p-tabpanel>
+
+      <!-- COUNTRY MARKUP (C-NUMBER) -->
+      <p-tabpanel value="3">
+        <div class="max-w-md">
+          <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div class="mb-5">
+              <h3 class="text-sm font-semibold text-slate-700">
+                Country Markup (C-Number)
+              </h3>
+              <p class="text-xs text-slate-400 mt-1">
+                Applied as the final multiplier on every quotation's
+                estimated price, based on the customer's selected country.
+                There is a single record shared across the app.
+              </p>
+            </div>
+
+            @if (cNumberLoading) {
+              <div class="text-sm text-slate-400 py-6 text-center">
+                Loading…
+              </div>
+            } @else {
+              <form
+                [formGroup]="cNumberForm"
+                class="flex flex-col gap-4"
+                (ngSubmit)="saveCNumber()"
+              >
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-sm font-medium text-slate-600"
+                    >India</label
+                  >
+                  <p-inputnumber
+                    formControlName="india"
+                    mode="decimal"
+                    [minFractionDigits]="0"
+                    [maxFractionDigits]="2"
+                   
+                    styleClass="w-full"
+                  ></p-inputnumber>
+                  @if (
+                    cNumberForm.get("india")?.touched &&
+                    cNumberForm.get("india")?.invalid
+                  ) {
+                    <span class="text-xs text-rose-600"
+                      >India markup is required.</span
+                    >
+                  }
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-sm font-medium text-slate-600"
+                    >Rest of World</label
+                  >
+                  <p-inputnumber
+                    formControlName="restOfWorld"
+                    mode="decimal"
+                    [minFractionDigits]="0"
+                    [maxFractionDigits]="2"
+                   
+                    styleClass="w-full"
+                  ></p-inputnumber>
+                  @if (
+                    cNumberForm.get("restOfWorld")?.touched &&
+                    cNumberForm.get("restOfWorld")?.invalid
+                  ) {
+                    <span class="text-xs text-rose-600"
+                      >Rest of World markup is required.</span
+                    >
+                  }
+                </div>
+
+                @if (cNumberRecord?.updatedAt) {
+                  <p class="text-xs text-slate-400">
+                    Last updated:
+                    {{ cNumberRecord?.updatedAt | date: "medium" }}
+                  </p>
+                }
+
+                <div>
+                  <button
+                    type="submit"
+                    [disabled]="cNumberForm.invalid || cNumberSaving"
+                    class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm rounded-xl transition-all shadow-sm cursor-pointer"
+                  >
+                    @if (cNumberSaving) {
+                      <i class="pi pi-spin pi-spinner text-sm"></i>
+                    } @else {
+                      <i class="pi pi-check text-sm"></i>
+                    }
+                    <span>Save</span>
+                  </button>
+                </div>
+              </form>
+            }
+          </div>
+        </div>
+      </p-tabpanel>
     </p-tabpanels>
   </p-tabs>
 </div>
+
 
 <!-- ADD / EDIT DIALOG -->
 <p-dialog
@@ -754,3 +853,5 @@
     </button>
   </ng-template>
 </p-dialog>
+
+</div>

@@ -147,11 +147,15 @@ export class StonePriceChartService {
    * Matching rules:
    *  1. Find chart(s) with the same stoneCode, and — if a shape was given —
    *     the same shape.
-   *  2. Within that chart, find the band where sizeMin <= weight <= sizeMax.
+   *  2. Within that chart, find the band where sizeMin <= totalWeight <=
+   *     sizeMax, where totalWeight = avg weight × pieces (e.g. 0.01ct avg
+   *     size with 4 pieces is 0.04ct total, which falls in a 0.02–0.04
+   *     band, not a 0–0.01 band).
    *  3. Look up gradeRates[quality] in that band.
    *  4. That value IS the amount — it is NOT multiplied by weight and NOT
-   *     multiplied by pieces. `weight`/`pieces` are only carried through on
-   *     the result for display purposes.
+   *     multiplied by pieces (pieces is only used to pick the band above).
+   *     `weight`/`pieces` are only carried through on the result for
+   *     display purposes.
    *
    * Returns null (rather than throwing) when nothing matches — the caller
    * (quotation-create.component) already treats a null result as a missing
@@ -177,13 +181,15 @@ export class StonePriceChartService {
     const candidateCharts = charts.filter((chart) => {
       if (!chart.isActive) return false;
       if (chart.stoneCode?.toUpperCase() !== codeUpper) return false;
-      // If the row didn't specify a shape, don't filter on it. If it did,
-      // the chart's shape must match.
       if (shapeUpper && chart.shape?.toUpperCase() !== shapeUpper) return false;
       return true;
     });
 
     for (const chart of candidateCharts) {
+      // Band lookup uses the AVG per-piece size only — bands represent
+      // individual stone size, not total carat weight across all pieces.
+      // e.g. 0.01ct avg size (regardless of pieces) falls in the 0–0.01
+      // band, not a larger band.
       const band = chart.bands.find(
         (b) => req.weight >= b.sizeMin && req.weight <= b.sizeMax,
       );
@@ -191,6 +197,11 @@ export class StonePriceChartService {
 
       const rate = band.gradeRates[req.quality];
       if (rate === undefined || rate === null) continue;
+
+      // Total weight (avg size × pieces) is used ONLY here, to price out
+      // all the carats at the per-carat rate found above — not for band
+      // selection.
+      const totalWeight = req.weight * (req.pieces || 1);
 
       return {
         isDiamond: chart.stoneCode.toUpperCase() === DIAMOND_CODE,
@@ -200,12 +211,11 @@ export class StonePriceChartService {
         quality: req.quality,
         weight: req.weight,
         pieces: req.pieces,
-        ratePerCarat: rate, // not actually "per carat" — it's the matched flat amount, kept here for the breakdown UI
-        amount: rate, // gradeRate IS the final amount — no multiplication by weight or pieces
+        ratePerCarat: rate,
+        amount: rate * totalWeight,
       };
     }
 
-    // No chart / band / quality combination matched.
     return null;
   }
 
