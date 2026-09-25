@@ -35,12 +35,14 @@ import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { DividerModule } from 'primeng/divider';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { OrderService } from '../../services/order.service';
+import { MessageService } from 'primeng/api';
 
 // Must match the DIAMOND_CODE constant in stone-price-charts.controller.js
 const DIAMOND_CODE = 'DW';
 
 type Country = 'india' | 'restOfWorld';
-type MakingChargeMode = 'flat' | 'percentage';
+type MakingChargeMode = 'flat';
 
 interface SelectOption {
   label: string;
@@ -113,6 +115,8 @@ export class QuotationCreateComponent implements OnInit {
   private metalRateService = inject(MetalRateService);
   private stonePriceChartService = inject(StonePriceChartService);
   private cNumberService = inject(CNumberService);
+  private orderService = inject(OrderService);
+  private messageService = inject(MessageService);
 
   metalPurityOptions: MetalPurity[] = [];
 
@@ -147,12 +151,13 @@ export class QuotationCreateComponent implements OnInit {
   ];
   countryControl = new FormControl<Country>('india', { nonNullable: true });
 
-  // Making charge, entered by the user in the Estimated Price panel —
-  // either a flat rate (₹ per gram of metal weight) or a percentage.
-  // Kept as standalone controls (outside quotationForm) since it lives in
-  // the price panel rather than the main form.
-
-  makingChargeValueControl = new FormControl<number | null>(null);
+  // Making charge, entered by the user in the Estimated Price panel — a
+  // flat rate (₹ per gram of metal weight). Kept as a standalone control
+  // (outside quotationForm) since it lives in the price panel rather than
+  // the main form.
+  makingChargeValueControl = new FormControl<number | null>(null, [
+    Validators.required,
+  ]);
 
   cNumberRates: CNumberRates | null = null;
 
@@ -351,22 +356,73 @@ export class QuotationCreateComponent implements OnInit {
     return this.stoneQualityOptionsByCode[code] ?? [];
   }
 
-  // Button click — validates required fields, then computes
+  // Button click — validates required fields, then computes.
+  // Logs unconditionally (not just on invalid) so it's always visible
+  // whether the form was valid, what its value was, and — if invalid —
+  // exactly which control(s) failed and why.
+
+  onSubmit() {
+    const payload = this.quotationForm.value; // matches the shape you posted
+    this.orderService.createOrder(payload).subscribe({
+      next: (res) => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Saved',
+          detail: 'Order created successfully',
+        });
+      },
+      error: (err) => {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Could not save order',
+        });
+      },
+    });
+  }
+
   calculatePrice(): void {
     if (this.quotationForm.invalid) {
+      console.log(
+        'Form errors by control',
+        this.collectFormErrors(this.quotationForm),
+      );
       this.quotationForm.markAllAsTouched();
     }
+
+    //save the complete form with the value
+    this.onSubmit();
     this.computeEstimate();
+  }
+
+  // Debug helper — walks every control in the form tree and reports which
+  // ones actually have validation errors. quotationForm.invalid alone only
+  // tells you *that* something failed, not *which* control.
+  private collectFormErrors(
+    group: FormGroup | FormArray,
+    path = '',
+  ): Record<string, any> {
+    const result: Record<string, any> = {};
+    const controls = (group as any).controls;
+    Object.keys(controls).forEach((key) => {
+      const control = controls[key];
+      const controlPath = path ? `${path}.${key}` : key;
+      if (control instanceof FormGroup || control instanceof FormArray) {
+        Object.assign(result, this.collectFormErrors(control, controlPath));
+      } else if (control.errors) {
+        result[controlPath] = control.errors;
+      }
+    });
+    return result;
   }
 
   // Runs every diamond & stone row through StonePriceChartService.calculate()
   // — each row's amount is the matched gradeRates value directly (no
   // multiplication by weight or pieces; see stone-price-chart.service.ts).
-  // Adds the user-entered making charge (flat ₹/g or % — both applied
-  // against metal weight, per the literal formula), sums everything into a
-  // base cost, divides by 100 to get the "c-number" (get_cNo), then
-  // multiplies by the selected country's markup (India 130% / Rest of
-  // World 150%, from GET /api/c-numbers).
+  // Adds the user-entered making charge (flat ₹/g, applied against metal
+  // weight), sums everything into a base cost, divides by 100 to get the
+  // "c-number" (get_cNo), then multiplies by the selected country's markup
+  // (India 130% / Rest of World 150%, from GET /api/c-numbers).
   private computeEstimate(): void {
     const { metal } = this.quotationForm.value;
     const diamondRows: Array<{
@@ -542,10 +598,6 @@ export class QuotationCreateComponent implements OnInit {
 
         // ---- Making charge ----
         // Flat: value is a ₹-per-gram rate → value × metal weight.
-        // Percentage: applied directly against metal weight, per the
-        // literal formula ("making charges × metal weight") — NOT against
-        // the metal amount. Flip this to (value/100) * metalAmount if you
-        // actually meant % of metal value.
         const makingChargeValueRaw = this.makingChargeValueControl.value;
         let makingChargeAmount = 0;
         let makingChargeLine: PriceResult['makingCharge'] = null;
