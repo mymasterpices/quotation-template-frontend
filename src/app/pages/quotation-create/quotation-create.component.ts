@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormArray,
@@ -41,12 +41,27 @@ import { MessageService } from 'primeng/api';
 // Must match the DIAMOND_CODE constant in stone-price-charts.controller.js
 const DIAMOND_CODE = 'DW';
 
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+
 type Country = 'india' | 'restOfWorld';
 type MakingChargeMode = 'flat';
 
 interface SelectOption {
   label: string;
   value: string;
+}
+
+interface CategoryOption {
+  value: string;
+  label: string;
+  image?: string;
+  icon?: string;
+}
+
+interface ProductImage {
+  name: string;
+  url: string; // object URL used for the preview thumbnail
+  file: File; // the real file, kept so it can be uploaded later
 }
 
 interface DiamondLine {
@@ -107,7 +122,7 @@ interface PriceResult {
   ],
   templateUrl: './quotation-create.component.html',
 })
-export class QuotationCreateComponent implements OnInit {
+export class QuotationCreateComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
 
   private metalPurityService = inject(MetalPurityService);
@@ -142,6 +157,36 @@ export class QuotationCreateComponent implements OnInit {
     { label: 'Vikram Mehta', value: 'Vikram Mehta' },
   ];
 
+  // Product categories shown as selectable tiles. Images live in
+  // public/product_category/ (served from /product_category/...).
+  categories: CategoryOption[] = [
+    {
+      value: 'necklace',
+      label: 'Necklace',
+      image: '/product_category/necklace.png',
+    },
+    { value: 'ring', label: 'Ring', image: '/product_category/ring.png' },
+    {
+      value: 'earrings',
+      label: 'Earrings',
+      image: '/product_category/earrings.png',
+    },
+    {
+      value: 'bracelet',
+      label: 'Bracelet',
+      image: '/product_category/bracelet.png',
+    },
+    {
+      value: 'bangles',
+      label: 'Bangles',
+      image: '/product_category/bangles.png',
+    },
+    { value: 'other', label: 'Other', icon: 'pi pi-ellipsis-h' },
+  ];
+
+  // Uploaded product images (previews + the original File objects).
+  productImages: ProductImage[] = [];
+
   // Country selector shown beside the page title. Drives which c-number
   // (India 130% / Rest of World 150%, from GET /api/c-numbers) is applied
   // as the final markup.
@@ -167,6 +212,7 @@ export class QuotationCreateComponent implements OnInit {
   priceResult: PriceResult | null = null;
 
   quotationForm: FormGroup = this.fb.group({
+    category: ['necklace'],
     basicInfo: this.fb.group({
       customerName: ['', Validators.required],
       phoneNumber: [
@@ -196,10 +242,58 @@ export class QuotationCreateComponent implements OnInit {
   get stones() {
     return this.quotationForm.get('stones') as FormArray;
   }
+  get selectedCategory(): string {
+    return this.quotationForm.get('category')?.value;
+  }
 
   ngOnInit(): void {
     this.loadAllOptions();
   }
+
+  ngOnDestroy(): void {
+    // Release the object URLs created for image previews.
+    this.productImages.forEach((img) => URL.revokeObjectURL(img.url));
+  }
+
+  // ---------- Category ----------
+
+  selectCategory(value: string): void {
+    this.quotationForm.get('category')?.setValue(value);
+  }
+
+  // ---------- Product images ----------
+
+  onImagesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+    if (!files) return;
+
+    Array.from(files).forEach((file) => {
+      if (file.size > MAX_IMAGE_SIZE) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'File too large',
+          detail: `${file.name} is over 5MB and was skipped.`,
+        });
+        return;
+      }
+      this.productImages.push({
+        name: file.name,
+        url: URL.createObjectURL(file),
+        file,
+      });
+    });
+
+    // Lets the user pick the same file again after removing it.
+    input.value = '';
+  }
+
+  removeImage(index: number): void {
+    URL.revokeObjectURL(this.productImages[index].url);
+    this.productImages.splice(index, 1);
+  }
+
+  // ---------- Form rows ----------
 
   private createDiamondRow(): FormGroup {
     return this.fb.group({
@@ -245,6 +339,8 @@ export class QuotationCreateComponent implements OnInit {
     this.stones.removeAt(index);
     this.computeEstimate();
   }
+
+  // ---------- Options loading ----------
 
   private loadAllOptions(): void {
     this.loadingOptions = true;
@@ -356,31 +452,8 @@ export class QuotationCreateComponent implements OnInit {
     return this.stoneQualityOptionsByCode[code] ?? [];
   }
 
-  // Button click — validates required fields, then computes.
-  // Logs unconditionally (not just on invalid) so it's always visible
-  // whether the form was valid, what its value was, and — if invalid —
-  // exactly which control(s) failed and why.
-
-  onSubmit() {
-    const payload = this.quotationForm.value; // matches the shape you posted
-    this.orderService.createOrder(payload).subscribe({
-      next: (res) => {
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Saved',
-          detail: 'Order created successfully',
-        });
-      },
-      error: (err) => {
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Could not save order',
-        });
-      },
-    });
-  }
-
+  // ---------- Submit ----------
+  // Button click — validate, then save (data + images) as multipart.
   calculatePrice(): void {
     if (this.quotationForm.invalid) {
       console.log(
@@ -388,11 +461,71 @@ export class QuotationCreateComponent implements OnInit {
         this.collectFormErrors(this.quotationForm),
       );
       this.quotationForm.markAllAsTouched();
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Incomplete form',
+        detail: 'Please fill all required fields.',
+      });
+      return; // don't save an invalid form
     }
 
-    //save the complete form with the value
-    this.onSubmit();
     this.computeEstimate();
+    this.onSubmit();
+  }
+
+  onSubmit() {
+    const raw = this.quotationForm.getRawValue();
+
+    // Drop untouched/empty rows so they don't fail backend validation,
+    // and default pieces to 1 (same as the price calculation does).
+    const diamonds = (raw.diamonds as any[])
+      .filter((d) => d.shape && d.quality && d.weight)
+      .map((d) => ({ ...d, pieces: d.pieces || 1 }));
+
+    const stones = (raw.stones as any[])
+      .filter((s) => s.type && s.quality && s.weight)
+      .map((s) => ({ ...s, pieces: s.pieces || 1 }));
+
+    const payload = {
+      category: raw.category, // category name now included
+      basicInfo: raw.basicInfo,
+      metal: raw.metal,
+      diamonds,
+      stones,
+      estimate: this.priceResult
+        ? {
+            makingChargePerGram: this.makingChargeValueControl.value,
+            country: this.priceResult.country,
+            countryFactor: this.priceResult.countryFactor,
+            baseCost: this.priceResult.rawSum,
+            total: this.priceResult.total,
+          }
+        : undefined,
+    };
+
+    const fd = new FormData();
+    fd.append('data', JSON.stringify(payload));
+    this.productImages.forEach(
+      (img) => fd.append('images', img.file, img.name), // field name matches upload.array('images')
+    );
+
+    this.orderService.createOrder(fd).subscribe({
+      next: () => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Saved',
+          detail: 'Order created successfully',
+        });
+      },
+      error: (err) => {
+        console.error(err);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: err?.error?.message || 'Could not save order',
+        });
+      },
+    });
   }
 
   // Debug helper — walks every control in the form tree and reports which
@@ -415,6 +548,8 @@ export class QuotationCreateComponent implements OnInit {
     });
     return result;
   }
+
+  // ---------- Price estimate ----------
 
   // Runs every diamond & stone row through StonePriceChartService.calculate()
   // — each row's amount is the matched gradeRates value directly (no
