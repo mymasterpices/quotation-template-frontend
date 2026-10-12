@@ -1,0 +1,417 @@
+<section class="min-h-full bg-[#FBF8F3] px-4 py-5 text-[#2B2B2B] sm:px-6 sm:py-6">
+  <a
+    routerLink="/quotations"
+    class="mb-3 inline-flex min-h-11 items-center gap-2 text-sm text-neutral-700 hover:text-[#3F6B5A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#3F6B5A]"
+  >
+    <i class="pi pi-arrow-left text-xs"></i> Back to Quotations
+  </a>
+
+  @if (loading()) {
+    <div class="grid gap-5 lg:grid-cols-2 xl:grid-cols-[1fr_1.4fr_0.9fr]">
+      <p-skeleton height="22rem" borderRadius="0.75rem" />
+      <p-skeleton height="22rem" borderRadius="0.75rem" />
+      <p-skeleton height="22rem" borderRadius="0.75rem" />
+    </div>
+  } @else if (error() || !quotation()) {
+    <div class="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+      <p class="text-sm text-red-700">{{ error() }}</p>
+      <button type="button" class="mt-3 min-h-11 rounded-lg bg-[#3F6B5A] px-4 py-2 text-sm text-white" (click)="retry()">
+        Retry
+      </button>
+    </div>
+  } @else {
+    @let q = quotation()!;
+
+    <!-- Title row -->
+    <header class="flex flex-wrap items-center gap-3">
+      <h1 class="font-['Cormorant_Garamond',serif] text-3xl font-semibold tracking-tight sm:text-4xl">
+        {{ q.category | titlecase }}
+      </h1>
+      <span class="rounded-full border border-[#E6DFD3] bg-white/70 px-3 py-1 text-xs">
+        Quote #{{ quotationNo(q) }}
+      </span>
+    </header>
+
+    <!-- Customer strip -->
+    <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:flex lg:flex-wrap lg:gap-x-10">
+        <div class="flex items-center gap-3">
+          <i class="pi pi-user text-lg text-neutral-600"></i>
+          <div class="min-w-0">
+            <dt class="sr-only">Customer</dt>
+            <dd class="truncate text-sm font-medium">{{ q.basicInfo.customerName }}</dd>
+            <span class="text-xs text-neutral-500">Customer</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-phone text-lg text-neutral-600"></i>
+          <div class="min-w-0">
+            <dt class="sr-only">Phone</dt>
+            <dd class="text-sm font-medium">{{ q.basicInfo.phoneNumber }}</dd>
+            <span class="text-xs text-neutral-500">Phone</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-envelope text-lg text-neutral-600"></i>
+          <div class="min-w-0">
+            <dt class="sr-only">Email</dt>
+            <dd class="break-all text-sm font-medium">{{ q.basicInfo.email || '—' }}</dd>
+            <span class="text-xs text-neutral-500">Email</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <i class="pi pi-id-card text-lg text-neutral-600"></i>
+          <div class="min-w-0">
+            <dt class="sr-only">Sales person</dt>
+            <dd class="text-sm font-medium">{{ q.basicInfo.salesPerson }}</dd>
+            <span class="text-xs text-neutral-500">Sales Person</span>
+          </div>
+        </div>
+      </dl>
+
+      <div class="flex items-center gap-3">
+        <i class="pi pi-calendar text-lg text-neutral-600"></i>
+        <div>
+          <span class="block text-xs text-neutral-500">Created On</span>
+          <span class="text-sm">{{ q.createdAt | date: 'dd MMM y, hh:mm a' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main grid: 1 col (mobile) · 2 cols (tablet) · 3 cols (desktop) -->
+    <div class="mt-6 grid items-start gap-5 lg:grid-cols-2 xl:grid-cols-[1fr_1.4fr_0.9fr]">
+      <!-- Gallery -->
+      <div>
+        <div class="relative aspect-square overflow-hidden rounded-xl bg-[#EADBC8]">
+          @if (activeImage(); as img) {
+            <img
+              [src]="fullUrl(img.url)"
+              [alt]="(q.category | titlecase) + ' image ' + (selectedImage() + 1)"
+              class="h-full w-full object-cover"
+            />
+            <button
+              type="button"
+              class="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#3F6B5A]"
+              aria-label="View full size"
+              (click)="lightboxOpen.set(true)"
+            >
+              <i class="pi pi-arrows-alt text-sm"></i>
+            </button>
+          } @else {
+            <div class="flex h-full w-full items-center justify-center text-[#B9A58B]">
+              <i class="pi pi-image text-4xl"></i>
+            </div>
+          }
+        </div>
+
+        @if (images().length > 1) {
+          <div class="mt-3 flex items-center gap-2">
+            <div #thumbStrip class="flex flex-1 gap-3 overflow-x-auto pb-1">
+              @for (img of images(); track img.filename; let i = $index) {
+                <button
+                  type="button"
+                  class="h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 bg-[#EADBC8] sm:h-[90px] sm:w-[90px]"
+                  [class]="i === selectedImage() ? 'border-[#3F6B5A]' : 'border-transparent'"
+                  [attr.aria-label]="'Show image ' + (i + 1)"
+                  [attr.aria-current]="i === selectedImage()"
+                  (click)="selectImage(i)"
+                >
+                  <img [src]="fullUrl(img.url)" [alt]="img.name" class="h-full w-full object-cover" loading="lazy" />
+                </button>
+              }
+            </div>
+            @if (images().length > 3) {
+              <button
+                type="button"
+                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#E6DFD3] bg-white hover:bg-neutral-50"
+                aria-label="Scroll thumbnails"
+                (click)="scrollThumbs()"
+              >
+                <i class="pi pi-chevron-right text-xs"></i>
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Material & Stones -->
+      <div class="rounded-xl border border-[#EFE8DC] bg-[#FDFBF7] p-4 sm:p-5">
+        <h2 class="mb-4 flex items-center gap-3 text-lg font-semibold">
+          <i class="pi pi-box text-xl text-neutral-700"></i> Material &amp; Stones
+        </h2>
+
+        <!-- Metal -->
+        <div class="rounded-lg border border-[#EFE8DC] p-4">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <h3 class="flex items-center gap-2 text-sm font-semibold">
+              <i class="pi pi-circle-fill text-xs text-amber-500"></i> Metal
+            </h3>
+            <span class="text-sm font-semibold">{{ formatAmount(q.metal.amount) }}</span>
+          </div>
+          <dl class="grid grid-cols-3 gap-3 text-sm">
+            <div>
+              <dt class="text-xs text-neutral-500">Purity</dt>
+              <dd class="mt-0.5 font-medium">{{ q.metal.purity }}</dd>
+            </div>
+            <div>
+              <dt class="text-xs text-neutral-500">Weight</dt>
+              <dd class="mt-0.5 font-medium">{{ q.metal.weight }} g</dd>
+            </div>
+            <div>
+              <dt class="text-xs text-neutral-500">Rate / g</dt>
+              <dd class="mt-0.5 font-medium">{{ formatAmount(q.metal.rate) }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- Diamonds -->
+        <div class="mt-4 rounded-lg border border-[#EFE8DC] p-4">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <h3 class="flex items-center gap-2 text-sm font-semibold">
+              <i class="pi pi-star text-sm text-neutral-700"></i> Diamonds
+            </h3>
+            @if (diamonds().length) {
+              <span class="text-sm font-semibold">{{ formatAmount(q.estimate.diamondTotal) }}</span>
+            }
+          </div>
+
+          @if (diamonds().length) {
+            <ul class="space-y-3">
+              @for (d of diamonds(); track $index) {
+                <li class="rounded-lg bg-white/70 p-3 ring-1 ring-[#F1EBE0]">
+                  <div class="flex items-start justify-between gap-3">
+                    <p class="text-sm font-medium">{{ d.shape }} · {{ formatQuality(d.quality) }}</p>
+                    <p class="whitespace-nowrap text-sm font-semibold">{{ formatAmount(d.amount) }}</p>
+                  </div>
+                  <dl class="mt-2 grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <dt class="text-xs text-neutral-500">Weight</dt>
+                      <dd class="mt-0.5">{{ d.weight }} ct</dd>
+                    </div>
+                    <div>
+                      <dt class="text-xs text-neutral-500">Pieces</dt>
+                      <dd class="mt-0.5">{{ d.pieces }}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-xs text-neutral-500">Rate range</dt>
+                      <dd class="mt-0.5">{{ formatAmount(d.rate) }}</dd>
+                    </div>
+                  </dl>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="text-sm text-neutral-500">No diamonds in this quotation.</p>
+          }
+        </div>
+
+        <!-- Stones -->
+        <div class="mt-4 rounded-lg border border-[#EFE8DC] p-4">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <h3 class="flex items-center gap-2 text-sm font-semibold">
+              <i class="pi pi-circle text-sm text-emerald-700"></i> Stones
+            </h3>
+            @if (stones().length) {
+              <span class="text-sm font-semibold">{{ formatAmount(q.estimate.stoneTotal) }}</span>
+            }
+          </div>
+
+          @if (stones().length) {
+            <ul class="space-y-3">
+              @for (s of stones(); track $index) {
+                <li class="rounded-lg bg-white/70 p-3 ring-1 ring-[#F1EBE0]">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium">{{ s.label || s.type }} <span class="text-xs font-normal text-neutral-500">({{ s.type }})</span></p>
+                      <p class="text-xs text-neutral-500">{{ s.shape || '—' }} · {{ formatQuality(s.quality) }}</p>
+                    </div>
+                    <p class="whitespace-nowrap text-sm font-semibold">{{ formatAmount(s.amount) }}</p>
+                  </div>
+                  <dl class="mt-2 grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <dt class="text-xs text-neutral-500">Weight</dt>
+                      <dd class="mt-0.5">{{ s.weight }} ct</dd>
+                    </div>
+                    <div>
+                      <dt class="text-xs text-neutral-500">Pieces</dt>
+                      <dd class="mt-0.5">{{ s.pieces }}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-xs text-neutral-500">Rate range</dt>
+                      <dd class="mt-0.5">{{ formatAmount(s.rate) }}</dd>
+                    </div>
+                  </dl>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="text-sm text-neutral-500">No stones in this quotation.</p>
+          }
+        </div>
+      </div>
+
+      <!-- Right column: stacked on mobile, 2-up on tablet, stacked again on desktop -->
+      <div class="grid gap-5 sm:grid-cols-2 lg:col-span-2 xl:col-span-1 xl:grid-cols-1">
+        <!-- Estimate -->
+        <div class="overflow-hidden rounded-xl border border-[#EFE8DC] bg-[#FDFBF7] sm:col-span-2 xl:col-span-1">
+          <h2 class="flex items-center gap-3 bg-[#E9F0EC] px-4 py-3.5 text-lg font-semibold sm:px-5">
+            <i class="pi pi-calculator text-xl text-[#3F6B5A]"></i> Estimate
+          </h2>
+          <dl class="space-y-3 p-4 text-sm sm:p-5">
+            <div class="flex justify-between gap-3">
+              <dt class="text-neutral-700">Metal ({{ q.metal.purity }}, {{ q.metal.weight }} g)</dt>
+              <dd class="whitespace-nowrap">{{ formatAmount(q.metal.amount) }}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-neutral-700">Diamonds</dt>
+              <dd class="whitespace-nowrap">{{ formatAmount(q.estimate.diamondTotal) }}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-neutral-700">Stones</dt>
+              <dd class="whitespace-nowrap">{{ formatAmount(q.estimate.stoneTotal) }}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-neutral-700">
+                Making Charge
+                <span class="block text-xs text-neutral-500">
+                  {{ formatAmount(q.estimate.makingChargePerGram) }} / g × {{ q.metal.weight }} g
+                </span>
+              </dt>
+              <dd class="whitespace-nowrap">{{ formatAmount(q.estimate.makingCharge) }}</dd>
+            </div>
+            <div class="flex justify-between gap-3 border-t border-[#EFE8DC] pt-3">
+              <dt class="text-neutral-700">Base Cost</dt>
+              <dd class="whitespace-nowrap font-medium">{{ formatAmount(q.estimate.baseCost) }}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-neutral-700">Country</dt>
+              <dd class="font-medium">{{ countryLabel(q.estimate.country) }}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-neutral-700">Country Factor</dt>
+              <dd>{{ q.estimate.countryFactor ?? '—' }}%</dd>
+            </div>
+            <div class="-mx-2 mt-2 flex items-center justify-between gap-3 rounded-lg bg-[#E9F0EC] px-3 py-3.5">
+              <dt class="font-semibold text-[#2F5546]">Total Estimate</dt>
+              <dd class="text-2xl font-semibold text-[#2F5546]">{{ formatAmount(q.estimate.total) }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="rounded-xl border border-[#EFE8DC] bg-[#FDFBF7] p-4 sm:p-5">
+          <h2 class="mb-4 flex items-center gap-3 text-base font-semibold">
+            <i class="pi pi-bolt text-lg text-neutral-700"></i> Quick Actions
+          </h2>
+          <div class="flex flex-col gap-3">
+            <button
+              type="button"
+              class="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#1F5443] px-4 py-3 text-sm text-white hover:bg-[#194536] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1F5443]"
+              (click)="share()"
+            >
+              <i class="pi pi-share-alt text-sm"></i> Share Quote
+            </button>
+            <button
+              type="button"
+              class="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#CFC6B6] bg-white px-4 py-3 text-sm hover:bg-neutral-50"
+              (click)="downloadPdf()"
+            >
+              <i class="pi pi-download text-sm"></i> Download PDF
+            </button>
+            <button
+              type="button"
+              class="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#CFC6B6] bg-white px-4 py-3 text-sm text-neutral-700 hover:bg-neutral-50"
+              (click)="createNew()"
+            >
+              <i class="pi pi-plus text-sm"></i> Create New Quote
+            </button>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="rounded-xl border border-[#EFE8DC] bg-[#FDFBF7] p-4 sm:p-5">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="flex items-center gap-3 text-base font-semibold">
+              <i class="pi pi-file text-lg text-neutral-700"></i> Notes
+            </h2>
+            @if (!editingNotes()) {
+              <button
+                type="button"
+                class="flex h-11 w-11 items-center justify-center rounded text-neutral-600 hover:bg-black/5"
+                aria-label="Edit notes"
+                (click)="startEditNotes()"
+              >
+                <i class="pi pi-pencil text-sm"></i>
+              </button>
+            }
+          </div>
+
+          @if (editingNotes()) {
+            <textarea
+              rows="4"
+              class="w-full rounded-lg border border-[#E6DFD3] bg-white p-3 text-base focus:outline focus:outline-2 focus:outline-[#3F6B5A] sm:text-sm"
+              placeholder="Add notes about this quote..."
+              [value]="notes()"
+              (input)="onNotesInput($event)"
+            ></textarea>
+            <div class="mt-3 flex justify-end gap-2">
+              <button type="button" class="min-h-11 rounded-lg bg-[#1F5443] px-4 py-1.5 text-sm text-white" (click)="saveNotes()">
+                Save notes
+              </button>
+            </div>
+          } @else {
+            <div class="min-h-[4.5rem] rounded-lg border border-[#EFE8DC] p-3 text-sm">
+              @if (notes()) {
+                <p class="whitespace-pre-line">{{ notes() }}</p>
+              } @else {
+                <p class="text-neutral-400">Add notes about this quote...</p>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Meta footer -->
+    <footer class="mt-6 grid gap-4 border-t border-[#EFE8DC] pt-4 text-sm sm:grid-cols-3">
+      <div class="flex items-center gap-3">
+        <i class="pi pi-clock text-lg text-neutral-500"></i>
+        <div>
+          <span class="block text-xs text-neutral-500">Created At</span>
+          {{ q.createdAt | date: 'dd MMM y, hh:mm a' }}
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <i class="pi pi-history text-lg text-neutral-500"></i>
+        <div>
+          <span class="block text-xs text-neutral-500">Last Updated</span>
+          {{ q.updatedAt | date: 'dd MMM y, hh:mm a' }}
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <i class="pi pi-file text-lg text-neutral-500"></i>
+        <div>
+          <span class="block text-xs text-neutral-500">Quote ID</span>
+          {{ quotationNo(q) }}
+        </div>
+      </div>
+    </footer>
+
+    <!-- Lightbox -->
+    <p-dialog
+      [(visible)]="lightboxOpen"
+      [modal]="true"
+      [dismissableMask]="true"
+      [draggable]="false"
+      [header]="activeImage().name"
+      [style]="{ width: 'min(95vw, 900px)' }"
+    >
+      @if (activeImage(); as img) {
+        <img [src]="fullUrl(img.url)" [alt]="img.name" class="mx-auto max-h-[70vh] w-auto max-w-full rounded-md" />
+        @if (img.size) {
+          <p class="mt-2 text-center text-xs text-neutral-500">{{ formatSize(img.size) }}</p>
+        }
+      }
+    </p-dialog>
+  }
+</section>

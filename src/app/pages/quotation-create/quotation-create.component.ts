@@ -1,4 +1,11 @@
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import {
+  Component,
+  computed,
+  inject,
+  OnDestroy,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormArray,
@@ -209,7 +216,18 @@ export class QuotationCreateComponent implements OnInit, OnDestroy {
   loadingOptions = true;
   loadError = false;
   calculating = false;
-  priceResult: PriceResult | null = null;
+
+  // ----- signal state: calculated rates & amounts -----
+  // Holds the latest calculation (metal / diamond / stone rate + amount,
+  // making charge, totals). Read it in the template as priceResult().
+  readonly priceResult = signal<PriceResult | null>(null);
+
+  readonly diamondTotal = computed(() =>
+    (this.priceResult()?.diamonds ?? []).reduce((s, l) => s + l.amount, 0),
+  );
+  readonly stoneTotal = computed(() =>
+    (this.priceResult()?.stones ?? []).reduce((s, l) => s + l.amount, 0),
+  );
 
   quotationForm: FormGroup = this.fb.group({
     category: ['necklace'],
@@ -453,7 +471,9 @@ export class QuotationCreateComponent implements OnInit, OnDestroy {
   }
 
   // ---------- Submit ----------
-  // Button click — validate, then save (data + images) as multipart.
+  // Button click — validate, recalculate with the latest rates, and only
+  // then save (data + images) as multipart. The save runs in the callback
+  // so it always reads the freshly calculated priceResult signal.
   calculatePrice(): void {
     if (this.quotationForm.invalid) {
       console.log(
@@ -469,38 +489,60 @@ export class QuotationCreateComponent implements OnInit, OnDestroy {
       return; // don't save an invalid form
     }
 
-    this.computeEstimate();
-    this.onSubmit();
+    this.computeEstimate(() => this.onSubmit());
   }
 
-  onSubmit() {
+  onSubmit(): void {
+    const result = this.priceResult();
+
+    if (!result?.metal) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Nothing to save',
+        detail: 'Add metal details to calculate a price.',
+      });
+      return;
+    }
+
+    // Don't save a total that silently leaves out some rows.
+    if (result.missingRates.length) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Missing rates',
+        detail: `No rate found for: ${result.missingRates.join(', ')}.`,
+      });
+      return;
+    }
+
     const raw = this.quotationForm.getRawValue();
 
-    // Drop untouched/empty rows so they don't fail backend validation,
-    // and default pieces to 1 (same as the price calculation does).
-    const diamonds = (raw.diamonds as any[])
-      .filter((d) => d.shape && d.quality && d.weight)
-      .map((d) => ({ ...d, pieces: d.pieces || 1 }));
-
-    const stones = (raw.stones as any[])
-      .filter((s) => s.type && s.quality && s.weight)
-      .map((s) => ({ ...s, pieces: s.pieces || 1 }));
-
+    // Rows come from the calculated lines, so every row carries its
+    // rate and amount. Empty/unpriced rows are not sent.
     const payload = {
-      category: raw.category, // category name now included
+      category: raw.category,
       basicInfo: raw.basicInfo,
-      metal: raw.metal,
-      diamonds,
-      stones,
-      estimate: this.priceResult
-        ? {
-            makingChargePerGram: this.makingChargeValueControl.value,
-            country: this.priceResult.country,
-            countryFactor: this.priceResult.countryFactor,
-            baseCost: this.priceResult.rawSum,
-            total: this.priceResult.total,
-          }
-        : undefined,
+      metal: { ...result.metal }, // purity, weight, rate, amount
+      diamonds: result.diamonds.map((l) => ({ ...l })), // shape, quality, weight, pieces, rate, amount
+      stones: result.stones.map((l) => ({
+        type: l.code,
+        label: l.label,
+        shape: l.shape || undefined,
+        quality: l.quality,
+        weight: l.weight,
+        pieces: l.pieces,
+        rate: l.rate,
+        amount: l.amount,
+      })),
+      estimate: {
+        makingChargePerGram: result.makingCharge?.value ?? 0,
+        makingCharge: result.makingCharge?.amount ?? 0,
+        diamondTotal: this.diamondTotal(),
+        stoneTotal: this.stoneTotal(),
+        country: result.country,
+        countryFactor: result.countryFactor,
+        baseCost: result.rawSum,
+        total: result.total,
+      },
     };
 
     const fd = new FormData();
@@ -558,7 +600,11 @@ export class QuotationCreateComponent implements OnInit, OnDestroy {
   // weight), sums everything into a base cost, divides by 100 to get the
   // "c-number" (get_cNo), then multiplies by the selected country's markup
   // (India 130% / Rest of World 150%, from GET /api/c-numbers).
-  private computeEstimate(): void {
+  //
+  // The result is stored in the priceResult signal. `onDone` (optional) runs
+  // after the signal has been updated successfully — used by calculatePrice()
+  // to save only once the fresh values are in place.
+  private computeEstimate(onDone?: () => void): void {
     const { metal } = this.quotationForm.value;
     const diamondRows: Array<{
       shape: string | null;
@@ -588,7 +634,8 @@ export class QuotationCreateComponent implements OnInit, OnDestroy {
       stoneReadyFlags.some(Boolean);
 
     if (!anyReady) {
-      this.priceResult = null;
+      this.priceResult.set(null);
+      onDone?.();
       return;
     }
 
@@ -728,8 +775,8 @@ export class QuotationCreateComponent implements OnInit, OnDestroy {
           );
         });
 
-        const diamondTotal = diamondLines.reduce((sum, l) => sum + l.amount, 0);
-        const stoneTotal = stoneLines.reduce((sum, l) => sum + l.amount, 0);
+        const diamondSum = diamondLines.reduce((sum, l) => sum + l.amount, 0);
+        const stoneSum = stoneLines.reduce((sum, l) => sum + l.amount, 0);
 
         // ---- Making charge ----
         // Flat: value is a ₹-per-gram rate → value × metal weight.
@@ -743,8 +790,7 @@ export class QuotationCreateComponent implements OnInit, OnDestroy {
             amount: makingChargeAmount,
           };
         }
-        const rawSum =
-          metalAmount + diamondTotal + stoneTotal + makingChargeAmount;
+        const rawSum = metalAmount + diamondSum + stoneSum + makingChargeAmount;
         const cNo = rawSum / 100;
 
         const country = this.countryControl.value;
@@ -757,7 +803,7 @@ export class QuotationCreateComponent implements OnInit, OnDestroy {
 
         const total = Math.round(cNo * (countryFactor ?? 0));
 
-        this.priceResult = {
+        this.priceResult.set({
           metal: metalLine,
           diamonds: diamondLines,
           stones: stoneLines,
@@ -768,12 +814,20 @@ export class QuotationCreateComponent implements OnInit, OnDestroy {
           countryFactor,
           total,
           missingRates,
-        };
+        });
         this.calculating = false;
+
+        // Signal is now up to date — safe to save.
+        onDone?.();
       },
       error: (err) => {
         console.error('Failed to fetch rates:', err);
         this.calculating = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Could not fetch the latest rates.',
+        });
       },
     });
   }

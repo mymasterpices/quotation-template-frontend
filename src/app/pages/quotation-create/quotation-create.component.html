@@ -516,15 +516,17 @@
                   >Estimated Price</span
                 >
               </div>
-              <span
-                *ngIf="priceResult"
-                class="text-xs bg-white/15 rounded-full px-2 py-1"
-                >Approx.</span
-              >
+              @if (priceResult()) {
+                <span class="text-xs bg-white/15 rounded-full px-2 py-1"
+                  >Approx.</span
+                >
+              }
             </div>
             <div class="text-3xl font-bold mt-3">
               <i class="pi pi-indian-rupee text-2xl align-middle"></i>
-              {{ priceResult ? (priceResult.total | number: "1.0-0") : "—" }}
+              {{
+                priceResult() ? (priceResult()!.total | number: "1.0-0") : "—"
+              }}
             </div>
           </div>
 
@@ -549,152 +551,150 @@
             </div>
           </p-card>
 
-          <div
-            *ngIf="!priceResult"
-            class="rounded-lg bg-gray-50 text-gray-500 text-sm px-4 py-3 flex items-center gap-2 mt-4"
-          >
-            <i class="pi pi-info-circle"></i>
-            Select metal, diamond, or gemstone details to see the estimate.
-          </div>
-
-          <div
-            *ngIf="priceResult"
-            class="rounded-lg bg-green-50 text-green-700 text-sm px-4 py-3 flex items-center gap-2 mt-4"
-          >
-            <i class="pi pi-check-circle"></i>
-            Price calculated based on the details you provided.
-          </div>
-
-          <div
-            *ngIf="priceResult && priceResult.missingRates.length"
-            class="rounded-lg bg-amber-50 text-amber-700 text-sm px-4 py-3 flex items-start gap-2"
-          >
-            <i class="pi pi-exclamation-triangle mt-0.5"></i>
-            <span
-              >No rate found for: {{ priceResult.missingRates.join(", ") }}.
-              These rows were left out of the total.</span
+          @if (priceResult(); as r) {
+            <div
+              class="rounded-lg bg-green-50 text-green-700 text-sm px-4 py-3 flex items-center gap-2 mt-4"
             >
-          </div>
-
-          <!-- Breakdown -->
-          <p-card *ngIf="priceResult">
-            <div class="flex items-center gap-2 mb-4">
-              <i class="pi pi-wallet text-gray-600"></i>
-              <h3 class="font-semibold text-gray-800">Price Breakdown</h3>
+              <i class="pi pi-check-circle"></i>
+              Price calculated based on the details you provided.
             </div>
 
-            <div class="space-y-4 text-sm">
+            @if (r.missingRates.length) {
               <div
-                *ngIf="priceResult.metal"
-                class="flex justify-between items-start pb-4 border-b border-gray-100"
+                class="rounded-lg bg-amber-50 text-amber-700 text-sm px-4 py-3 flex items-start gap-2"
               >
-                <div class="flex gap-2">
-                  <i class="pi pi-box text-amber-600 mt-0.5"></i>
-                  <div>
-                    <div class="font-medium text-gray-800">
-                      Metal ({{ priceResult.metal.purity }})
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      Weight: {{ priceResult.metal.weight }} g &nbsp;|&nbsp;
-                      Purity: {{ priceResult.metal.purity }}
-                    </div>
-                  </div>
-                </div>
-                <span class="font-semibold text-gray-800 whitespace-nowrap"
-                  >₹ {{ priceResult.metal.amount | number: "1.0-0" }}</span
-                >
-              </div>
-
-              <div
-                *ngFor="let d of priceResult.diamonds; let last = last"
-                class="flex justify-between items-start pb-4 border-b border-gray-100"
-              >
-                <div class="flex gap-2">
-                  <i class="pi pi-star text-blue-600 mt-0.5"></i>
-                  <div>
-                    <div class="font-medium text-gray-800">Diamond</div>
-                    <div class="text-xs text-gray-500">
-                      Shape: {{ labelFor(shapeOptions, d.shape) }} &nbsp;|&nbsp;
-                      Quality:
-                      {{ labelFor(diamondQualityOptions, d.quality) }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      Weight: {{ d.weight }} ct &nbsp;|&nbsp; Pieces:
-                      {{ d.pieces }}
-                    </div>
-                  </div>
-                </div>
-                <span class="font-semibold text-gray-800 whitespace-nowrap"
-                  >₹ {{ d.amount | number: "1.0-0" }}</span
-                >
-              </div>
-
-              <div
-                *ngFor="let s of priceResult.stones; let last = last"
-                class="flex justify-between items-start pb-4 border-b border-gray-100"
-              >
-                <div class="flex gap-2">
-                  <i class="pi pi-heart-fill text-emerald-600 mt-0.5"></i>
-                  <div>
-                    <div class="font-medium text-gray-800">
-                      Gemstone ({{ s.label }})
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      Shape: {{ labelFor(shapeOptions, s.shape) }} &nbsp;|&nbsp;
-                      Quality:
-                      {{ labelFor(getStoneQualityOptions(s.code), s.quality) }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      Weight: {{ s.weight }} ct &nbsp;|&nbsp; Pieces:
-                      {{ s.pieces }}
-                    </div>
-                  </div>
-                </div>
-                <span class="font-semibold text-gray-800 whitespace-nowrap"
-                  >₹ {{ s.amount | number: "1.0-0" }}</span
-                >
-              </div>
-
-              <div
-                *ngIf="priceResult.makingCharge"
-                class="flex justify-between text-gray-600"
-              >
+                <i class="pi pi-exclamation-triangle mt-0.5"></i>
                 <span
-                  >Making Charge (₹{{ priceResult.makingCharge.value }}/g)</span
+                  >No rate found for: {{ r.missingRates.join(", ") }}. These
+                  rows were left out of the total.</span
                 >
-                <span
-                  >₹
-                  {{ priceResult.makingCharge.amount | number: "1.0-0" }}</span
-                >
+              </div>
+            }
+
+            <!-- Breakdown -->
+            <p-card>
+              <div class="flex items-center gap-2 mb-4">
+                <i class="pi pi-wallet text-gray-600"></i>
+                <h3 class="font-semibold text-gray-800">Price Breakdown</h3>
               </div>
 
-              <div class="flex justify-between text-gray-600">
-                <span>Base Cost</span>
-                <span>₹ {{ priceResult.rawSum | number: "1.0-0" }}</span>
-              </div>
+              <div class="space-y-4 text-sm">
+                @if (r.metal) {
+                  <div
+                    class="flex justify-between items-start pb-4 border-b border-gray-100"
+                  >
+                    <div class="flex gap-2">
+                      <i class="pi pi-box text-amber-600 mt-0.5"></i>
+                      <div>
+                        <div class="font-medium text-gray-800">
+                          Metal ({{ r.metal.purity }})
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          Weight: {{ r.metal.weight }} g &nbsp;|&nbsp; Purity:
+                          {{ r.metal.purity }}
+                        </div>
+                      </div>
+                    </div>
+                    <span class="font-semibold text-gray-800 whitespace-nowrap"
+                      >₹ {{ r.metal.amount | number: "1.0-0" }}</span
+                    >
+                  </div>
+                }
 
-              <div class="flex justify-between text-xs text-gray-400">
-                <span>Country Markup</span>
-                <span
-                  >{{
-                    priceResult.country === "india" ? "India" : "Rest of World"
-                  }}
-                  · {{ priceResult.countryFactor ?? "—" }}</span
-                >
-              </div>
+                @for (d of r.diamonds; track $index) {
+                  <div
+                    class="flex justify-between items-start pb-4 border-b border-gray-100"
+                  >
+                    <div class="flex gap-2">
+                      <i class="pi pi-star text-blue-600 mt-0.5"></i>
+                      <div>
+                        <div class="font-medium text-gray-800">Diamond</div>
+                        <div class="text-xs text-gray-500">
+                          Shape: {{ labelFor(shapeOptions, d.shape) }}
+                          &nbsp;|&nbsp; Quality:
+                          {{ labelFor(diamondQualityOptions, d.quality) }}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          Weight: {{ d.weight }} ct &nbsp;|&nbsp; Pieces:
+                          {{ d.pieces }}
+                        </div>
+                      </div>
+                    </div>
+                    <span class="font-semibold text-gray-800 whitespace-nowrap"
+                      >₹ {{ d.amount | number: "1.0-0" }}</span
+                    >
+                  </div>
+                }
 
-              <div
-                class="flex justify-between items-center bg-green-50 rounded-lg px-4 py-3 mt-2"
-              >
-                <span class="font-semibold text-green-800"
-                  >Total Estimated Price</span
+                @for (s of r.stones; track $index) {
+                  <div
+                    class="flex justify-between items-start pb-4 border-b border-gray-100"
+                  >
+                    <div class="flex gap-2">
+                      <i class="pi pi-heart-fill text-emerald-600 mt-0.5"></i>
+                      <div>
+                        <div class="font-medium text-gray-800">
+                          Gemstone ({{ s.label }})
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          Shape: {{ labelFor(shapeOptions, s.shape) }}
+                          &nbsp;|&nbsp; Quality:
+                          {{
+                            labelFor(getStoneQualityOptions(s.code), s.quality)
+                          }}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          Weight: {{ s.weight }} ct &nbsp;|&nbsp; Pieces:
+                          {{ s.pieces }}
+                        </div>
+                      </div>
+                    </div>
+                    <span class="font-semibold text-gray-800 whitespace-nowrap"
+                      >₹ {{ s.amount | number: "1.0-0" }}</span
+                    >
+                  </div>
+                }
+
+                @if (r.makingCharge) {
+                  <div class="flex justify-between text-gray-600">
+                    <span>Making Charge (₹{{ r.makingCharge.value }}/g)</span>
+                    <span>₹ {{ r.makingCharge.amount | number: "1.0-0" }}</span>
+                  </div>
+                }
+
+                <div class="flex justify-between text-gray-600">
+                  <span>Base Cost</span>
+                  <span>₹ {{ r.rawSum | number: "1.0-0" }}</span>
+                </div>
+
+                <div class="flex justify-between text-xs text-gray-400">
+                  <span>Country Markup</span>
+                  <span
+                    >{{ r.country === "india" ? "India" : "Rest of World" }} ·
+                    {{ r.countryFactor ?? "—" }}</span
+                  >
+                </div>
+
+                <div
+                  class="flex justify-between items-center bg-green-50 rounded-lg px-4 py-3 mt-2"
                 >
-                <span class="font-bold text-green-800 text-lg"
-                  >₹ {{ priceResult.total | number: "1.0-0" }}</span
-                >
+                  <span class="font-semibold text-green-800"
+                    >Total Estimated Price</span
+                  >
+                  <span class="font-bold text-green-800 text-lg"
+                    >₹ {{ r.total | number: "1.0-0" }}</span
+                  >
+                </div>
               </div>
+            </p-card>
+          } @else {
+            <div
+              class="rounded-lg bg-gray-50 text-gray-500 text-sm px-4 py-3 flex items-center gap-2 mt-4"
+            >
+              <i class="pi pi-info-circle"></i>
+              Select metal, diamond, or gemstone details to see the estimate.
             </div>
-          </p-card>
+          }
 
           <!-- Important notes -->
           <div
@@ -717,6 +717,7 @@
             icon="pi pi-save"
             iconPos="left"
             styleClass="w-full justify-center"
+            [loading]="calculating"
             (onClick)="calculatePrice()"
           >
           </p-button>
